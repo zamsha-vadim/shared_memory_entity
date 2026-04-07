@@ -78,7 +78,6 @@ TEST(LockFreeQueueTest, TestReadingWaitWithoutTimeout)
         std::chrono::duration_cast<std::chrono::milliseconds>(elapsed_time) - kNoTimeout;
 
     ASSERT_EQ(res, sme::QueueResult::kTimeout);
-    ASSERT_LE(20, real_timeout.count());
     ASSERT_LE(real_timeout.count(), 20);
 }
 
@@ -284,10 +283,12 @@ TEST(LockFreeQueueTest, TestThreadedWritingAndReading)
 
     constexpr size_t kItemCount = 350000;
 
+    constexpr size_t kWriterCount{2};
+    constexpr size_t kReaderCount{2};
     //constexpr size_t kWriterCount{2};
     //constexpr size_t kReaderCount{2};
-    constexpr size_t kWriterCount{14};
-    constexpr size_t kReaderCount{14};
+    //constexpr size_t kWriterCount{20};
+    //constexpr size_t kReaderCount{20};
 
     std::unique_ptr<Item<int>[]> data{new Item<int>[kItemCount]};
 

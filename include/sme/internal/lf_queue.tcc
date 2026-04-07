@@ -69,7 +69,7 @@ auto LockFreeQueue<ItemT>::WriteItem(ItemType* new_item) noexcept -> QueueResult
             updated_read_link.next = GetObjectOffset(new_item);
 
             read_link_.compare_exchange_strong(curr_read_link, updated_read_link,
-                                               std::memory_order_relaxed);
+                                               std::memory_order_release);
         }
     }
 

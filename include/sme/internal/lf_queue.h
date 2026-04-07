@@ -87,13 +87,13 @@ class SME_EXPORT LockFreeQueue final {
     static constexpr uint32_t kDisabledState{0x80000000};
     static constexpr uint32_t kUnmarkedState{0x0000FFFF};
 
-    std::atomic<uint32_t> size_{0};
-    mutable std::atomic<uint32_t> act_state_{kUnmarkedState};
-
-    std::atomic<ItemLink> read_link_{};
-
+    alignas(64) std::atomic<ItemLink> read_link_{};
     alignas(64) std::atomic<ObjectOffset> last_item_ofp_{0};
+
+    alignas(64) mutable std::atomic<uint32_t> act_state_{kUnmarkedState};
     mutable std::atomic<uint32_t> wait_count_{0};
+
+    std::atomic<uint32_t> size_{0};
 };
 
 }  // namespace sme

@@ -45,7 +45,7 @@ auto ReferenceCounter<T>::Increment(ValueType amount) const noexcept -> ValueTyp
 template <typename T>
 auto ReferenceCounter<T>::Decrement() const noexcept -> ValueType
 {
-    auto prev_value = counter_.fetch_sub(1, std::memory_order_relaxed);
+    auto prev_value = counter_.fetch_sub(1, std::memory_order_release);
 
     auto updated_value = prev_value - 1;
     assert(updated_value != std::numeric_limits<ValueType>::max());
@@ -127,6 +127,8 @@ class SME_EXPORT IntrusivePtr final {
     [[nodiscard]] auto Get() const noexcept -> T* { return obj_; }
 
    private:
+    auto IsSame(const IntrusivePtr&) const noexcept -> bool;
+
     void Copy(const IntrusivePtr& src) noexcept;
     void Move(IntrusivePtr& src) noexcept;
 
@@ -151,22 +153,23 @@ IntrusivePtr<T>::IntrusivePtr(T* obj, ReferenceAssign assign_type) noexcept : ob
 template <typename T>
 auto IntrusivePtr<T>::operator=(const IntrusivePtr& src) noexcept -> IntrusivePtr&
 {
-    if (&src != this)
-        Copy(src);
+    Copy(src);
     return *this;
 }
 
 template <typename T>
 auto IntrusivePtr<T>::operator=(IntrusivePtr&& src) noexcept -> IntrusivePtr&
 {
-    if (&src != this)
-        Move(src);
+    Move(src);
     return *this;
 }
 
 template <typename T>
 void IntrusivePtr<T>::Copy(const IntrusivePtr& src) noexcept
 {
+    if (IsSame(src))
+        return;
+
     Release();
 
     obj_ = src.obj_;
@@ -177,10 +180,19 @@ void IntrusivePtr<T>::Copy(const IntrusivePtr& src) noexcept
 template <typename T>
 void IntrusivePtr<T>::Move(IntrusivePtr& src) noexcept
 {
+    if (IsSame(src))
+        return;
+
     Release();
 
     obj_ = src.obj_;
     src.obj_ = nullptr;
+}
+
+template <typename T>
+auto IntrusivePtr<T>::IsSame(const IntrusivePtr& iptr) const noexcept -> bool
+{
+    return (&iptr == this || iptr.obj_ == obj_);
 }
 
 template <typename T>
