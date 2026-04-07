@@ -1,0 +1,6 @@
+---
+Checks:
+'*,-llvm-*,-llvmlibc-*,-abseil-*,-android-*,-cert-*,-fuchsia-*,-hicpp-*,-objc-*,-zircon-*,-altera-*,-readability-avoid-unconditional-preprocessor-if,-performance-avoid-endl,-readability-redundant-access-specifiers,-readability-braces-around-statements,-google-readability-braces-around-statements,-misc-include-cleaner,-google-readability-todo,-modernize-use-nodiscard'
+HeaderFilterRegex: 'smq/.*\.h'
+WarningsAsErrors: '*'
+FormatStyle: google

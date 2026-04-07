@@ -1,3 +1,8 @@
+sme_export.h
+
+build
+build/include
+
 # Prerequisites
 *.d
 
@@ -11,20 +16,11 @@
 *.gch
 *.pch
 
-# Linker files
-*.ilk
-
 # Debugger Files
 *.pdb
 
 # Compiled Dynamic libraries
 *.so
-*.dylib
-*.dll
-
-# Fortran module files
-*.mod
-*.smod
 
 # Compiled Static libraries
 *.lai
@@ -33,9 +29,12 @@
 *.lib
 
 # Executables
-*.exe
 *.out
-*.app
 
 # debug information files
 *.dwo
+
+# vim work files
+*.swp
+*.swo
+
