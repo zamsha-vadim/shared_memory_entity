@@ -272,6 +272,35 @@ TEST(LockFreeQueueTest, TestReadOnDisabled)
     ASSERT_TRUE(rd_item2 == &wr_item);
 }
 
+TEST(LockFreeQueueTest, TestDestructor)
+{
+    std::vector<Item<int>> items(10);
+    std::vector<size_t> item_refs(items.size());
+
+    auto pos{0u};
+
+    for (auto& item : items)
+        item_refs[pos++] = item.GetReferenceCount();
+
+    {
+        sme::LockFreeQueue<Item<int>> queue;
+
+        for (auto& item : items) {
+            auto res = queue.Write(&item);
+            ASSERT_EQ(res, sme::QueueResult::kSuccessful);
+        }
+
+        for (auto& item : items) {
+            ASSERT_TRUE(item.GetReferenceCount() != 0);
+        }
+    }
+
+    pos = 0;
+    for (auto& item : items) {
+        ASSERT_TRUE(item.GetReferenceCount() == item_refs[pos++]);
+    }
+}
+
 TEST(LockFreeQueueTest, TestThreadedWritingAndReading)
 {
     // реализация в clang
@@ -283,12 +312,12 @@ TEST(LockFreeQueueTest, TestThreadedWritingAndReading)
 
     constexpr size_t kItemCount = 350000;
 
-    constexpr size_t kWriterCount{2};
-    constexpr size_t kReaderCount{2};
-    //constexpr size_t kWriterCount{2};
-    //constexpr size_t kReaderCount{2};
-    //constexpr size_t kWriterCount{20};
-    //constexpr size_t kReaderCount{20};
+    //constexpr size_t kWriterCount{1};
+    //constexpr size_t kReaderCount{1};
+    constexpr size_t kWriterCount{4};
+    constexpr size_t kReaderCount{4};
+    //constexpr size_t kWriterCount{10};
+    //constexpr size_t kReaderCount{10};
 
     std::unique_ptr<Item<int>[]> data{new Item<int>[kItemCount]};
 

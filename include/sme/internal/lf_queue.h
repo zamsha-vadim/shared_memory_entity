@@ -4,6 +4,7 @@
 #include <atomic>
 #include <chrono>
 #include <cstddef>
+#include <new>
 #include <utility>
 
 #include "sme/internal/item_link.h"
@@ -17,11 +18,16 @@
 #endif
 #endif
 
+#ifdef __cpp_lib_hardware_interference_size
+constexpr size_t kCacheLineSize = std::hardware_constructive_interference_size;
+#else
+constexpr size_t kCacheLineSize = 64;
+#endif
+
 namespace sme {
 
 template <typename ItemT>
-class SME_EXPORT LockFreeQueue final {
-
+class alignas(kCacheLineSize) LockFreeQueue final {
     static_assert(alignof(ItemT) >= 16,
                   "The item type alignment must be equal or greater 16");
 
@@ -51,6 +57,7 @@ class SME_EXPORT LockFreeQueue final {
     LockFreeQueue(LockFreeQueue&&) = delete;
     auto operator=(const LockFreeQueue&) -> LockFreeQueue& = delete;
     auto operator=(LockFreeQueue&&) noexcept -> LockFreeQueue& = delete;
+    ~LockFreeQueue();
 
     [[nodiscard]] auto Write(ItemType* new_item) noexcept -> QueueResult;
 
@@ -80,6 +87,8 @@ class SME_EXPORT LockFreeQueue final {
 
     void NotifyReaders() noexcept;
 
+    void Clear() noexcept;
+
     auto GetObjectOffset(const ItemType* obj) const noexcept -> ObjectOffset;
     auto GetObjectAddress(ObjectOffset ofs_ptr) const noexcept -> ItemType*;
 
@@ -87,10 +96,10 @@ class SME_EXPORT LockFreeQueue final {
     static constexpr uint32_t kDisabledState{0x80000000};
     static constexpr uint32_t kUnmarkedState{0x0000FFFF};
 
-    alignas(64) std::atomic<ItemLink> read_link_{};
-    alignas(64) std::atomic<ObjectOffset> last_item_ofp_{0};
+    alignas(kCacheLineSize) std::atomic<ItemLink> read_link_{};
+    alignas(kCacheLineSize) std::atomic<ObjectOffset> last_item_ofp_{0};
 
-    alignas(64) mutable std::atomic<uint32_t> act_state_{kUnmarkedState};
+    alignas(kCacheLineSize) mutable std::atomic<uint32_t> act_state_{kUnmarkedState};
     mutable std::atomic<uint32_t> wait_count_{0};
 
     std::atomic<uint32_t> size_{0};

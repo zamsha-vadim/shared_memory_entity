@@ -9,6 +9,12 @@
 namespace sme {
 
 template <typename ItemT>
+LockFreeQueue<ItemT>::~LockFreeQueue()
+{
+    Clear();
+}
+
+template <typename ItemT>
 auto LockFreeQueue<ItemT>::Write(ItemType* new_item) noexcept -> QueueResult
 {
     if (IsDisabled())
@@ -258,6 +264,36 @@ template <typename ItemT>
 auto LockFreeQueue<ItemT>::IsDisabled() const noexcept -> bool
 {
     return (act_state_.load(std::memory_order_acquire) & kDisabledState) != 0;
+}
+
+template <typename ItemT>
+void LockFreeQueue<ItemT>::Clear() noexcept
+{
+    auto last_item_ofp = last_item_ofp_.load(std::memory_order_acquire);
+
+    auto begin_link = read_link_.load(std::memory_order_acquire);
+    auto item_ofp = begin_link.next;
+
+    while (item_ofp != 0) {
+        auto* item = GetObjectAddress(item_ofp);
+        if (item == nullptr)
+            break;
+
+        auto item_link = item->GetItemLink().load(std::memory_order_acquire);
+        auto next_item_ofp = item_link.next;
+
+        item_link.next = 0;
+        item->GetItemLink().store(item_link, std::memory_order_release);
+
+        auto obj_counter = item->RemoveReference();
+        if (obj_counter > 0 && item_ofp == last_item_ofp)
+            item->RemoveReference();
+
+        item_ofp = next_item_ofp;
+    }
+
+    read_link_.store(ItemLink{}, std::memory_order_release);
+    last_item_ofp_.store(0, std::memory_order_release);
 }
 
 template <typename ItemT>
