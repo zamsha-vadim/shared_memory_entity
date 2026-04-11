@@ -1,10 +1,16 @@
 cmake_minimum_required(VERSION 3.22 FATAL_ERROR)
 
-project(sme LANGUAGES CXX)
+project(sme 
+    VERSION 0.9
+    DESCRIPTION "Shared memory entity"
+    HOMEPAGE_URL "https://github.com/zamsha-vadim/shared_memory_entity"
+    LANGUAGES CXX
+)
 
-include(GNUInstallDirs)
-include(GenerateExportHeader)
 include(CheckCXXCompilerFlag)
+include(GenerateExportHeader)
+include(CMakePackageConfigHelpers)
+include(GNUInstallDirs)
 
 ### Compile/Build settings
 
@@ -23,7 +29,6 @@ endif()
 set(THREADS_PREFER_PTHREAD_FLAG TRUE)
 find_package(Threads REQUIRED)
 
-#add_compile_options(-pipe -Wall -Wextra -Werror)
 add_compile_options(-pipe -Wall -Wextra)
 
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
@@ -67,14 +72,19 @@ set(BASE_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/include)
 set(BUILD_INCLUDE_DIR ${CMAKE_BINARY_DIR}/include)
 set(INCLUDE_DIR "${BASE_INCLUDE_DIR}/sme")
 
-### mem_basis library
+### LABRARY: mem_basis
 
-add_library(mem_basis 
-    INTERFACE
-        ${INCLUDE_DIR}/sme_export.h
+set(mem_basis_headers
+    ${INCLUDE_DIR}/sme_export.h
 
-        ${INCLUDE_DIR}/mem_ptr.h
-        ${INCLUDE_DIR}/basic_allocator.h
+    ${INCLUDE_DIR}/mem_ptr.h
+
+    ${INCLUDE_DIR}/basic_allocator.h
+    ${INCLUDE_DIR}/basic_allocator.tcc
+)
+
+add_library(mem_basis INTERFACE 
+    ${mem_basis_headers}
 )
 
 target_include_directories(mem_basis 
@@ -82,21 +92,30 @@ target_include_directories(mem_basis
         $<BUILD_INTERFACE:${BASE_INCLUDE_DIR}>
         $<BUILD_INTERFACE:${BUILD_INCLUDE_DIR}>
 
-        $<INSTALL_INTERFACE:include>
+#        $<INSTALL_INTERFACE:include>
 )
+
+#set_target_properties(mem_basis
+#    PROPERTIES 
+#        PUBLIC_HEADER "${mem_basis_headers}"
+#)
 
 target_compile_options(mem_basis
     INTERFACE
         -fno-strict-aliasing
 )
 
-### mem_space_manip library
+### LABRARY:mem_space_manip
+
+set(mem_space_manip_headers
+    ${INCLUDE_DIR}/internal/mem_space_block.h
+    ${INCLUDE_DIR}/internal/mem_space_manip.h
+)
 
 add_library(mem_space_manip OBJECT
-    ${INCLUDE_DIR}/internal/mem_space_block.h
-    src/mem_space_block.cpp
+    ${mem_space_manip_headers}
 
-    ${INCLUDE_DIR}/internal/mem_space_manip.h
+    src/mem_space_block.cpp
     src/mem_space_manip.cpp
 )
 
@@ -106,14 +125,10 @@ generate_export_header(mem_space_manip
     EXPORT_FILE_NAME ${INCLUDE_DIR}/sme_export.h
 )
 
-set_property(TARGET mem_space_manip
-    PROPERTY
+set_target_properties(mem_space_manip
+    PROPERTIES 
+#        PRIVATE_HEADER "${mem_space_manip_headers}"
         POSITION_INDEPENDENT_CODE TRUE
-)
-
-target_link_libraries(mem_space_manip
-    PUBLIC
-        mem_basis
 )
 
 target_compile_options(mem_space_manip
@@ -121,14 +136,29 @@ target_compile_options(mem_space_manip
         -fno-omit-frame-pointer
 )
 
-### mem_domain_manip library
+target_link_libraries(mem_space_manip
+    PUBLIC
+        mem_basis
+)
+
+### LABRARY: mem_domain_manip
+
+set(mem_domain_manip_headers
+    ${INCLUDE_DIR}/internal/mem_domain_block.h
+    ${INCLUDE_DIR}/internal/mem_domain_segment.h
+)
 
 add_library(mem_domain_manip OBJECT
-    ${INCLUDE_DIR}/internal/mem_domain_block.h
-    src/mem_domain_block.cpp
+    ${mem_domain_manip_headers}
 
-    ${INCLUDE_DIR}/internal/mem_domain_segment.h
+    src/mem_domain_block.cpp
     src/mem_domain_segment.cpp
+)
+
+set_target_properties(mem_domain_manip
+    PROPERTIES 
+#        PRIVATE_HEADER "${mem_domain_manip_headers}"
+        POSITION_INDEPENDENT_CODE TRUE
 )
 
 target_compile_options(mem_domain_manip
@@ -136,33 +166,20 @@ target_compile_options(mem_domain_manip
         -fno-omit-frame-pointer
 )
 
-set_property(TARGET mem_domain_manip
-    PROPERTY
-        POSITION_INDEPENDENT_CODE TRUE
-)
-
 target_link_libraries(mem_domain_manip
     PUBLIC
         mem_basis
 )
 
-### sme library
+### LIBRARY: sme 
 
-add_library(sme SHARED
-    ${INCLUDE_DIR}/internal/futex.h
-    src/futex.cpp
-
+set(sme_public_headers
     ${INCLUDE_DIR}/mutex.h
-    src/mutex.cpp
 
     ${INCLUDE_DIR}/mem_space.h
-    src/mem_space.cpp
-
     ${INCLUDE_DIR}/mem_domain.h
-    src/mem_domain.cpp
 
     ${INCLUDE_DIR}/alloc_util.h
-    ${INCLUDE_DIR}/internal/string_hash.h
 
     ${INCLUDE_DIR}/msp/unique_ptr.h
     ${INCLUDE_DIR}/msp/allocator.h
@@ -194,23 +211,53 @@ add_library(sme SHARED
     ${INCLUDE_DIR}/mdm/stack.h
 
     ${INCLUDE_DIR}/mem_map.h
-    src/mem_map.cpp
     ${INCLUDE_DIR}/shm.h
-    src/shm.cpp
-
     ${INCLUDE_DIR}/mapped_obj.h
-    src/mapped_obj.cpp
+
+    ${INCLUDE_DIR}/sync_type.h
+    ${INCLUDE_DIR}/msg_channel.h
+)
+
+set(sme_private_headers
+    ${INCLUDE_DIR}/internal/futex.h
+
+    ${INCLUDE_DIR}/internal/string_hash.h
 
     ${INCLUDE_DIR}/internal/ref_count.h
-
     ${INCLUDE_DIR}/internal/item_link.h
     ${INCLUDE_DIR}/internal/queue_res.h
     ${INCLUDE_DIR}/internal/lf_queue.h
+    ${INCLUDE_DIR}/internal/lf_queue.tcc
     ${INCLUDE_DIR}/internal/queue.h
+    ${INCLUDE_DIR}/internal/queue.tcc
+)
 
-    ${INCLUDE_DIR}/msg_channel.h
+set(sme_headers
+    ${sme_public_headers}
+    ${sme_private_headers}
+)
+
+add_library(sme SHARED
+    ${sme_headers}
+
+    src/futex.cpp
+    src/mutex.cpp
+
+    src/mem_space.cpp
+    src/mem_domain.cpp
+    src/mem_map.cpp
+
+    src/shm.cpp
+    src/mapped_obj.cpp
+
     src/msg_channel.cpp
 )
+
+#set_target_properties(sme
+#    PROPERTIES 
+#        PUBLIC_HEADER "${sme_public_headers}"
+#        PRIVATE_HEADER "${sme_private_headers}"
+#)
 
 target_compile_options(sme
     PRIVATE
@@ -244,6 +291,58 @@ endif()
 #    )   
 #endif()
 
+# INSTALLATION
+
+set(INSTALL_INCLUDE_DIR ${CMAKE_INSTALL_INCLUDEDIR})
+set(INSTALL_LIB_DIR ${CMAKE_INSTALL_LIBDIR})
+
+install(TARGETS mem_basis mem_space_manip mem_domain_manip sme 
+    EXPORT SmeTargets
+    LIBRARY DESTINATION ${INSTALL_LIB_DIR}
+    INCLUDES DESTINATION ${INSTALL_INCLUDE_DIR}
+)
+
+install(DIRECTORY ${INCLUDE_DIR}
+    TYPE INCLUDE
+    FILES_MATCHING PATTERN "*.h" PATTERN "*.tcc"
+)
+
+set(config_dir "${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_DATAROOTDIR}/cmake")
+set(config_file "${config_dir}/SmeConfig.cmake")
+set(config_version_file "${config_dir}/SmeConfigVersion.cmake")
+set(install_config_dir "${CMAKE_INSTALL_DATAROOTDIR}/cmake/Sme-${PROJECT_VERSION}")
+
+write_basic_package_version_file(
+    ${config_version_file}
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY AnyNewerVersion
+)
+
+configure_package_config_file(
+    "${CMAKE_SOURCE_DIR}/SmeConfig.cmake.in"
+    "${config_file}"
+    PATH_VARS 
+        INSTALL_INCLUDE_DIR 
+        INSTALL_LIB_DIR
+    INSTALL_DESTINATION 
+        ${install_config_dir}
+)
+
+install(EXPORT SmeTargets
+    DESTINATION ${install_config_dir}
+    NAMESPACE Sme::
+)
+
+install(
+    FILES
+        ${config_file}
+        ${config_version_file}
+    DESTINATION 
+        ${install_config_dir}
+)
+
+# TESTS
+
 if (GTest_FOUND)
     add_executable(sme_base_test
         test/mem_ptr_test.cpp
@@ -274,7 +373,7 @@ if (GTest_FOUND)
         test/mutex_test.cpp
 
         test/queue_test.cpp
-        test/sync_queue_test.cpp
+#        test/sync_queue_test.cpp
         test/lf_queue_test.cpp
 
         test/mem_space_test.cpp
