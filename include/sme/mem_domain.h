@@ -10,6 +10,9 @@
 #include "sme/mutex.h"
 #include "sme/sme_export.h"
 
+// NOLINTBEGIN(cppcoreguidelines-pro-type-const-cast,
+// cppcoreguidelines-pro-type-reinterpret-cast,)
+
 namespace sme {
 
 class SME_EXPORT MemoryDomain {
@@ -79,5 +82,8 @@ void SME_EXPORT DeleteMemoryDomain(Pointer<MemoryDomain>&) noexcept;
 void SME_EXPORT DeleteMemoryDomain(Pointer<MemoryDomain>&&) noexcept;
 
 }  // namespace sme
+
+// NOLINTEND(cppcoreguidelines-pro-type-const-cast,
+// cppcoreguidelines-pro-type-reinterpret-cast,)
 
 #endif  // SME_MEM_DOMAIN_H

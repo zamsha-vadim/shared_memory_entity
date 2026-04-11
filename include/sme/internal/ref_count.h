@@ -19,7 +19,7 @@ class SME_EXPORT ReferenceCounter {
     using ValueType = T;
 
    public:
-    ReferenceCounter(ValueType value = 0) : counter_{value} {}
+    explicit ReferenceCounter(ValueType value = 0) : counter_{value} {}
 
     auto Increment(ValueType amount = 1) const noexcept -> ValueType;
     auto Decrement() const noexcept -> ValueType;
@@ -94,7 +94,7 @@ class SME_EXPORT IntrusivePtr final {
     IntrusivePtr() noexcept = default;
     explicit IntrusivePtr(T* obj) noexcept;
     IntrusivePtr(T* obj, ReferenceAssign assign_type) noexcept;
-    IntrusivePtr(std::nullptr_t) noexcept : IntrusivePtr{} {}
+    explicit IntrusivePtr(std::nullptr_t) noexcept : IntrusivePtr{} {}
 
     IntrusivePtr(const IntrusivePtr& src) noexcept { Copy(src); }
     IntrusivePtr(IntrusivePtr&& src) noexcept { Move(src); }
@@ -105,7 +105,7 @@ class SME_EXPORT IntrusivePtr final {
     ~IntrusivePtr() { Release(); }
 
     auto IsValid() const noexcept -> bool { return obj_ != nullptr; }
-    operator bool() const noexcept { return IsValid(); }
+    explicit operator bool() const noexcept { return IsValid(); }
 
     void Release() noexcept;
 
@@ -127,7 +127,7 @@ class SME_EXPORT IntrusivePtr final {
     [[nodiscard]] auto Get() const noexcept -> T* { return obj_; }
 
    private:
-    auto IsSame(const IntrusivePtr&) const noexcept -> bool;
+    auto IsSame(const IntrusivePtr& other) const noexcept -> bool;
 
     void Copy(const IntrusivePtr& src) noexcept;
     void Move(IntrusivePtr& src) noexcept;
@@ -150,12 +150,16 @@ IntrusivePtr<T>::IntrusivePtr(T* obj, ReferenceAssign assign_type) noexcept : ob
         obj_->AddReference();
 }
 
+// NOLINTBEGIN(bugprone-unhandled-self-assignment)
+
 template <typename T>
 auto IntrusivePtr<T>::operator=(const IntrusivePtr& src) noexcept -> IntrusivePtr&
 {
     Copy(src);
     return *this;
 }
+
+// NOLINTEND(bugprone-unhandled-self-assignment)
 
 template <typename T>
 auto IntrusivePtr<T>::operator=(IntrusivePtr&& src) noexcept -> IntrusivePtr&
@@ -190,9 +194,9 @@ void IntrusivePtr<T>::Move(IntrusivePtr& src) noexcept
 }
 
 template <typename T>
-auto IntrusivePtr<T>::IsSame(const IntrusivePtr& iptr) const noexcept -> bool
+auto IntrusivePtr<T>::IsSame(const IntrusivePtr& other) const noexcept -> bool
 {
-    return (&iptr == this || iptr.obj_ == obj_);
+    return (&other == this || other.obj_ == obj_);
 }
 
 template <typename T>

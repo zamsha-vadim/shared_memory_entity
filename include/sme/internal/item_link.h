@@ -8,11 +8,16 @@
 
 #include "sme/internal/ref_count.h"
 
+// NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast,
+// cppcoreguidelines-pro-type-const-cast,)
+
 namespace sme {
 
 using ObjectOffset = std::ptrdiff_t;
 
-struct alignas(16) ItemLink final {
+constexpr auto kDWCASAlign{16U};
+
+struct alignas(kDWCASAlign) ItemLink final {
     ObjectOffset basic{0};
     ObjectOffset next{0};
 };
@@ -49,5 +54,8 @@ auto GetObjectAddress(const BaseT* base, ObjectOffset ofs_ptr) noexcept -> ObjT*
 }
 
 }  // namespace sme
+
+// NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast,
+// cppcoreguidelines-pro-type-const-cast,)
 
 #endif  // SME_INTERNAL_ITEM_LINK_H

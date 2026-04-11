@@ -6,6 +6,8 @@
 
 namespace sme {
 
+// NOLINTBEGIN(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays,-warnings-as-errors)
+
 class MemoryDomainSegment {
    public:
     using Size = MemoryDomainBlock::Size;
@@ -47,8 +49,10 @@ class MemoryDomainSegment {
     Pointer<MemoryDomainRedZoneBlock> last_block_;
     Pointer<MemoryDomainSegment> next_segment_;
 
-    alignas(kMemoryDomainBlockAlign) char data_[0];
+    alignas(kMemoryDomainBlockAlign) char data_[];
 };
+
+// NOLINTEND(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays,-warnings-as-errors)
 
 constexpr auto MemoryDomainSegment::GetMinimumSegmentSize() noexcept -> Size
 {

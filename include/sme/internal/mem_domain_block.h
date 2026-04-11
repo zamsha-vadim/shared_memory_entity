@@ -187,7 +187,7 @@ class alignas(kMemoryDomainBlockAlign) MemoryDomainRedZoneBlock
     using DataType = std::array<char, kDataSize>;
 
    public:
-    MemoryDomainRedZoneBlock(Size prev_block_ofs);
+    explicit MemoryDomainRedZoneBlock(Size prev_block_ofs);
 
     auto GetData() const noexcept -> const DataType&;
 

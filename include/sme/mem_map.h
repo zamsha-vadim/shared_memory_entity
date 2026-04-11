@@ -20,8 +20,8 @@ class SME_EXPORT MemoryMap final {
     MemoryMap() = default;
 
     MemoryMap(const MemoryMap& other) = delete;
-    MemoryMap(MemoryMap&&) noexcept;
-    auto operator=(const MemoryMap&) -> MemoryMap& = delete;
+    MemoryMap(MemoryMap&& other) noexcept;
+    auto operator=(const MemoryMap& other) -> MemoryMap& = delete;
     auto operator=(MemoryMap&& other) noexcept -> MemoryMap&;
 
     ~MemoryMap();
@@ -29,10 +29,10 @@ class SME_EXPORT MemoryMap final {
     [[nodiscard]] auto isValid() const noexcept -> bool;
 
     auto GetAddress() const noexcept -> const void*;
-    operator const void*() const noexcept;
+    operator const void*() const noexcept;  // NOLINT(google-explicit-constructor)
 
     auto GetAddress() noexcept -> void*;
-    operator void*() noexcept;
+    operator void*() noexcept;  // NOLINT(google-explicit-constructor)
 
     auto GetSize() const noexcept -> size_t;
 
@@ -43,7 +43,7 @@ class SME_EXPORT MemoryMap final {
    private:
     MemoryMap(int file_desc, size_t size, off_t offset, ShareType share_type);
 
-    void Move(MemoryMap&) noexcept;
+    void Move(MemoryMap& other) noexcept;
 
    private:
     void* addr_{nullptr};

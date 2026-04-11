@@ -74,7 +74,7 @@ class SME_EXPORT MemorySpace final {
         friend class MemorySpace;
 
        private:
-        explicit Iterator(Pointer<MemorySpaceManipulator>);
+        explicit Iterator(Pointer<MemorySpaceManipulator> mem_manip);
 
        public:
         Iterator() = default;
@@ -82,14 +82,14 @@ class SME_EXPORT MemorySpace final {
         auto GetValue() const -> value_type;
         auto operator*() const -> value_type;
 
-        operator bool() const noexcept;
+        explicit operator bool() const noexcept;
         auto operator !() const noexcept -> bool;
 
         auto operator++() -> Iterator&;
         auto operator++(int) -> Iterator;
 
-        auto operator==(const Iterator&) const noexcept -> bool;
-        auto operator!=(const Iterator&) const noexcept -> bool;
+        auto operator==(const Iterator& other) const noexcept -> bool;
+        auto operator!=(const Iterator& other) const noexcept -> bool;
 
        private:
         Pointer<MemorySpaceManipulator> mem_manip_{};

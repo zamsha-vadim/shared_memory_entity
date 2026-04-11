@@ -37,7 +37,7 @@ class Synchronizer {
     enum class Type : uint8_t { kNone, kPrivate, kShared };
 
    public:
-    Synchronizer(Type type);
+    explicit Synchronizer(Type type);
 
     void lock();
     auto try_lock() -> bool;

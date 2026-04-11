@@ -9,6 +9,8 @@
 #include "sme/mem_ptr.h"
 #include "sme/sme_export.h"
 
+// NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast,)
+
 namespace sme {
 
 template <typename T, typename = void>
@@ -70,11 +72,15 @@ void SME_EXPORT Delete(MemoryAreaType& mem_area, Pointer<T>& obj) noexcept
     obj.Reset();
 }
 
+// NOLINTBEGIN(cppcoreguidelines-rvalue-reference-param-not-moved,-warnings-as-errors)
+
 template <typename T, typename MemoryAreaType>
-void SME_EXPORT Delete(MemoryAreaType& mem_area, Pointer<T>&& obj) noexcept
+void SME_EXPORT Delete(MemoryAreaType& mem_area, Pointer<T>&& obj) noexcept 
 {
     Delete(mem_area, obj);
 }
+
+// NOLINTEND(cppcoreguidelines-rvalue-reference-param-not-moved,-warnings-as-errors)
 
 template <typename T, typename MemoryAreaType>
 class SME_EXPORT Deleter final {
@@ -86,7 +92,7 @@ class SME_EXPORT Deleter final {
     using pointer = Pointer<T>;
 
    public:
-    Deleter(MemoryAreaType& mem_area) noexcept : mem_area_{&mem_area} {}
+    explicit Deleter(MemoryAreaType& mem_area) noexcept : mem_area_{&mem_area} {}
 
     auto GetMemoryArea() const noexcept -> const MemoryAreaType&
     {
@@ -132,5 +138,7 @@ template <typename T,
 }
 
 }  // namespace sme
+
+// NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast,)
 
 #endif  // SME_ALLOC_UTIL_H

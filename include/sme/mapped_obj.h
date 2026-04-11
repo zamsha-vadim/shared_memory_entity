@@ -10,7 +10,8 @@
 #include "sme/mem_space.h"
 #include "sme/sme_export.h"
 
-// NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
+// NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast, cppcoreguidelines-pro-bounds-pointer-arithmetic,
+// cppcoreguidelines-pro-type-const-cast, cppcoreguidelines-owning-memory)
 
 namespace sme {
 
@@ -79,6 +80,8 @@ using MappedMemoryUniquePtr = std::unique_ptr<char, MemoryUnmapper>;
 
 }  // namespace sme
 
-// NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast)
+// NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast,
+// cppcoreguidelines-pro-bounds-pointer-arithmetic, cppcoreguidelines-pro-type-const-cast,
+// cppcoreguidelines-owning-memory)
 
 #endif  // SME_MAPPED_OBJ_H

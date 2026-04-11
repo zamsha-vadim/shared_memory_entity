@@ -32,14 +32,15 @@ class SME_EXPORT MessageDeleter final {
     void operator()(Message* obj) noexcept;
 };
 
-class SME_EXPORT __attribute__((aligned(16))) Message {
+class SME_EXPORT __attribute__((aligned(kDWCASAlign))) Message {
     friend class Queue<Message>;
 
    public:
     using ReferenceCounterType = ReferenceCounter<>::ValueType;
 
    public:
-    Message(MemoryDomain& mem_domain, MessageDeleter deleter = MessageDeleter{}) noexcept;
+    explicit Message(MemoryDomain& mem_domain,
+                     MessageDeleter deleter = MessageDeleter{}) noexcept;
 
     Message(const Message&) = delete;
     Message(Message&&) = delete;
@@ -79,7 +80,7 @@ class SME_EXPORT __attribute__((aligned(16))) Message {
 
 class SME_EXPORT MessageWriter final {
    public:
-    MessageWriter(MessageChannelLayout& data_layout) noexcept;
+    explicit MessageWriter(MessageChannelLayout& data_layout) noexcept;
 
     MessageWriter(const MessageWriter&) = delete;
     MessageWriter(MessageWriter&&) = delete;
@@ -103,7 +104,7 @@ class SME_EXPORT MessageWriter final {
 
 class SME_EXPORT MessageReader final {
    public:
-    MessageReader(MessageChannelLayout& data_layout) noexcept;
+    explicit MessageReader(MessageChannelLayout& data_layout) noexcept;
 
     MessageReader(const MessageReader&) = delete;
     MessageReader(MessageReader&&) = delete;

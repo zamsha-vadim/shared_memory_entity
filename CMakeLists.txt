@@ -7,6 +7,11 @@ project(sme
     LANGUAGES CXX
 )
 
+if(NOT CMAKE_SYSTEM_PROCESSOR MATCHES "(x86_64|amd64)")
+    message(FATAL_ERROR 
+            "The project supports x86_64 and amd64 processors. You have '${CMAKE_SYSTEM_PROCESSOR}' processor")
+endif()
+
 include(CheckCXXCompilerFlag)
 include(GenerateExportHeader)
 include(CMakePackageConfigHelpers)
@@ -422,10 +427,7 @@ if (GTest_FOUND)
 endif()
 
 if (CLANG_TIDY AND CLANG_TIDY_BIN)
-    set(SME_CLANG_TIDY 
-        ${CLANG_TIDY_COMMAND}
-        "--checks=-"
-    )
+    set(SME_CLANG_TIDY ${CLANG_TIDY_COMMAND})
     set_target_properties(sme 
         PROPERTIES 
             CXX_CLANG_TIDY "${SME_CLANG_TIDY}"
@@ -434,7 +436,7 @@ if (CLANG_TIDY AND CLANG_TIDY_BIN)
 #    if (GTest_FOUND)
 #        set(TEST_CLANG_TIDY 
 #            ${CLANG_TIDY_COMMAND}
-#            "--checks=-clang-diagnostic-unused-variable,-cppcoreguidelines-avoid-magic-numbers,-readability-magic-numbers"
+#            "--checks=-clang-diagnostic-unused-variable,-cppcoreguidelines-avoid-magic-numbers,-readability-magic-numbers,-readability-identifier-length,-cppcoreguidelines-avoid-non-const-global-variables,-concurrency-mt-unsafe,-cppcoreguidelines-pro-bounds-pointer-arithmetic,-*"
 #        )
 #        set_target_properties(sme_test
 #            PROPERTIES 

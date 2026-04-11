@@ -16,7 +16,7 @@ class SME_EXPORT AllocationContext final {
     using AreaPointer = Pointer<MemoryAreaType>;
 
    public:
-    AllocationContext(MemoryAreaType& area);
+    explicit AllocationContext(MemoryAreaType& area);
 
     AllocationContext(const AllocationContext&) = delete;
     AllocationContext(AllocationContext&&) = delete;
@@ -40,7 +40,8 @@ class SME_EXPORT AllocationContext final {
     bool acquired_{false};
 
     AreaPointer area_;
-    static thread_local AreaPointer glob_area_;
+    static thread_local AreaPointer
+        glob_area_;  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
 };
 
 // class BasicAllocator

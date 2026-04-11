@@ -1,7 +1,6 @@
 #include "test/mem_fault.h"
 
-#include <signal.h>
-
+#include <csignal>
 #include <map>
 #include <stdexcept>
 #include <system_error>

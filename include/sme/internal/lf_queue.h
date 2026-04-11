@@ -28,7 +28,7 @@ namespace sme {
 
 template <typename ItemT>
 class alignas(kCacheLineSize) LockFreeQueue final {
-    static_assert(alignof(ItemT) >= 16,
+    static_assert(alignof(ItemT) >= kDWCASAlign,
                   "The item type alignment must be equal or greater 16");
 
     static_assert(HasAddReference<ItemT>::value,

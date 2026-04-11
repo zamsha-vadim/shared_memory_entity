@@ -4,6 +4,11 @@
 #include <cstddef>
 #include <cstdint>
 
+// NOLINTBEGIN(cppcoreguidelines-avoid-c-arrays, modernize-avoid-c-arrays,
+// warnings-as-errors, misc-non-private-member-variables-in-classes,
+// cppcoreguidelines-pro-type-reinterpret-cast,
+// cppcoreguidelines-pro-bounds-pointer-arithmetic)
+
 namespace sme {
 
 constexpr auto kMemorySpaceBlockAlign{alignof(std::max_align_t)};
@@ -16,15 +21,14 @@ struct alignas(kMemorySpaceBlockAlign) MemorySpaceBlock {
     MemorySpaceBlock() = default;
     MemorySpaceBlock(const MemorySpaceBlock&) = delete;
     MemorySpaceBlock(MemorySpaceBlock&&) = delete;
-    MemorySpaceBlock& operator=(const MemorySpaceBlock&) = delete;
-    MemorySpaceBlock& operator=(MemorySpaceBlock&&) = delete;
+    auto operator=(const MemorySpaceBlock&) -> MemorySpaceBlock& = delete;
+    auto operator=(MemorySpaceBlock&&) -> MemorySpaceBlock& = delete;
     ~MemorySpaceBlock() = default;
 
     static constexpr auto GetMinBlockSize() noexcept -> size_t;
     static constexpr auto GetMinDataSize() noexcept -> size_t;
 
     static constexpr auto CalculateBlockSize(size_t data_size) noexcept -> Size;
-
     static constexpr auto CalculateAllocationDataSize(size_t data_size) noexcept -> Size;
 
     auto GetDataSize() const noexcept -> size_t;
@@ -34,7 +38,7 @@ struct alignas(kMemorySpaceBlockAlign) MemorySpaceBlock {
 
     Position prev_block_pos{0};
 
-    alignas(kMemorySpaceBlockDataAlign) char data[];  // NOLINT
+    alignas(kMemorySpaceBlockDataAlign) char data[];
 };
 
 constexpr auto kMemorySpaceBlockHeaderSize{offsetof(MemorySpaceBlock, data)};
@@ -92,5 +96,10 @@ inline auto IsSequentialBlocks(const MemorySpaceBlock& left_block,
 }
 
 }  // namespace sme
+
+// NOLINTEND(cppcoreguidelines-avoid-c-arrays, modernize-avoid-c-arrays,
+// warnings-as-errors, misc-non-private-member-variables-in-classes,
+// cppcoreguidelines-pro-type-reinterpret-cast,
+// cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
 #endif  // SME_MEM_SPACE_BLOCK_H
