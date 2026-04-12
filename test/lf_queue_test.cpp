@@ -50,17 +50,17 @@ TEST(LockFreeQueueTest, TestReadingWaitWithTimeout)
 
     const auto timeout{std::chrono::milliseconds(200)};
 
-    auto begin_time = std::chrono::system_clock::now();
+    auto begin_time = std::chrono::steady_clock::now();
 
     auto res = queue.WaitForReading(timeout);
 
-    auto elapsed_time = std::chrono::system_clock::now() - begin_time;
+    auto elapsed_time = std::chrono::steady_clock::now() - begin_time;
     auto real_timeout =
         timeout - std::chrono::duration_cast<std::chrono::milliseconds>(elapsed_time);
 
     ASSERT_EQ(res, sme::QueueResult::kTimeout);
     ASSERT_LE(0, real_timeout.count());
-    ASSERT_GE(timeout.count() + 20, real_timeout.count());
+    ASSERT_LE(real_timeout.count(), timeout.count() + 20);
 }
 
 TEST(LockFreeQueueTest, TestReadingWaitWithoutTimeout)
@@ -69,11 +69,11 @@ TEST(LockFreeQueueTest, TestReadingWaitWithoutTimeout)
 
     const auto kNoTimeout{std::chrono::milliseconds(0)};
 
-    auto begin_time = std::chrono::system_clock::now();
+    auto begin_time = std::chrono::steady_clock::now();
 
     auto res = queue.WaitForReading(kNoTimeout);
 
-    auto elapsed_time = std::chrono::system_clock::now() - begin_time;
+    auto elapsed_time = std::chrono::steady_clock::now() - begin_time;
     auto real_timeout =
         std::chrono::duration_cast<std::chrono::milliseconds>(elapsed_time) - kNoTimeout;
 

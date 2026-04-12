@@ -4,18 +4,21 @@
 #include <pthread.h>
 
 #include <cstdint>
-#include <optional>
+#include <atomic>
 
 #include "sme/sme_export.h"
 
 namespace sme {
 
+class ConditionVariable;
+
+enum class InterprocessVisibility : uint8_t { kPrivate, kShared };
+
 class SME_EXPORT Mutex {
-   public:
-    enum class Type : uint8_t { kPrivate, kShared };
+    friend class ConditionVariable;
 
    public:
-    explicit Mutex(Type type = Type::kPrivate);
+    explicit Mutex(InterprocessVisibility visibility = InterprocessVisibility::kPrivate);
 
     Mutex(const Mutex&) = delete;
     Mutex(Mutex&&) = delete;
@@ -27,24 +30,16 @@ class SME_EXPORT Mutex {
     auto try_lock() -> bool;
     void unlock();
 
+    auto GetVisibility() const noexcept -> InterprocessVisibility;
+
+   private:
+    auto GetNativeObject() noexcept -> pthread_mutex_t&;
+
    private:
     pthread_mutex_t mutex_{};
-    bool locked_{false};
-};
 
-class Synchronizer {
-   public:
-    enum class Type : uint8_t { kNone, kPrivate, kShared };
-
-   public:
-    explicit Synchronizer(Type type);
-
-    void lock();
-    auto try_lock() -> bool;
-    void unlock();
-
-   private:
-    std::optional<Mutex> mutex_;
+    InterprocessVisibility visibility_{};
+    std::atomic<uint64_t> locked_{0};
 };
 
 }  // namespace sme

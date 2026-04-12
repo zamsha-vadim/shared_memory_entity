@@ -7,19 +7,19 @@
 TEST(MutexTest, TestConstructorForDefaultPrivateType)
 {
     ASSERT_NO_THROW(sme::Mutex{});
-    ASSERT_NO_THROW(sme::Mutex{sme::Mutex::Type::kPrivate});
+    ASSERT_NO_THROW(sme::Mutex{sme::InterprocessVisibility::kPrivate});
 }
 
 TEST(MutexTest, TestPrivateLock)
 {
-    sme::Mutex mutex{sme::Mutex::Type::kPrivate};
+    sme::Mutex mutex{sme::InterprocessVisibility::kPrivate};
 
     ASSERT_NO_THROW(mutex.lock());
 }
 
 TEST(MutexTest, TestTryPrivateLock)
 {
-    sme::Mutex mutex{sme::Mutex::Type::kPrivate};
+    sme::Mutex mutex{sme::InterprocessVisibility::kPrivate};
 
     bool locked{};
 
@@ -37,7 +37,7 @@ TEST(MutexTest, TestTryPrivateLock)
 
 TEST(MutexTest, TestPrivateUnlock)
 {
-    sme::Mutex mutex{sme::Mutex::Type::kPrivate};
+    sme::Mutex mutex{sme::InterprocessVisibility::kPrivate};
 
     mutex.lock();
 
@@ -46,14 +46,15 @@ TEST(MutexTest, TestPrivateUnlock)
 
 TEST(MutexTest, TestConstructorForSharedType)
 {
-    ASSERT_NO_THROW(sme::Mutex{sme::Mutex::Type::kShared});
+    ASSERT_NO_THROW(sme::Mutex{sme::InterprocessVisibility::kShared});
 }
 
 TEST(MutexDeathTest, TestSharedLock)
 {
     auto shm = sme::SharedMemoryFile::MapAnonymousMemory(
         sizeof(sme::Mutex), sme::MemoryMap::ShareType::kShared);
-    auto* mutex = sme::Construct<sme::Mutex>(shm, 0, sme::Mutex::Type::kShared);
+    auto* mutex =
+        sme::Construct<sme::Mutex>(shm, 0, sme::InterprocessVisibility::kShared);
 
     ASSERT_NO_THROW(mutex->lock());
 
@@ -85,7 +86,8 @@ TEST(MutexDeathTest, TestSharedMutexConsistent)
 {
     auto shm = sme::SharedMemoryFile::MapAnonymousMemory(
         sizeof(sme::Mutex), sme::MemoryMap::ShareType::kShared);
-    auto* mutex = sme::Construct<sme::Mutex>(shm, 0, sme::Mutex::Type::kShared);
+    auto* mutex =
+        sme::Construct<sme::Mutex>(shm, 0, sme::InterprocessVisibility::kShared);
 
     EXPECT_EXIT(
         {
@@ -104,7 +106,8 @@ TEST(MutexDeathTest, TestSharedMutexInvalidUnlock)
 {
     auto shm = sme::SharedMemoryFile::MapAnonymousMemory(
         sizeof(sme::Mutex), sme::MemoryMap::ShareType::kShared);
-    auto* mutex = sme::Construct<sme::Mutex>(shm, 0, sme::Mutex::Type::kShared);
+    auto* mutex =
+        sme::Construct<sme::Mutex>(shm, 0, sme::InterprocessVisibility::kShared);
 
     EXPECT_EXIT(
         {

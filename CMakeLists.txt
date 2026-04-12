@@ -180,6 +180,9 @@ target_link_libraries(mem_domain_manip
 
 set(sme_public_headers
     ${INCLUDE_DIR}/mutex.h
+    ${INCLUDE_DIR}/cond_var.h
+
+    ${INCLUDE_DIR}/sync.h
 
     ${INCLUDE_DIR}/mem_space.h
     ${INCLUDE_DIR}/mem_domain.h
@@ -247,6 +250,9 @@ add_library(sme SHARED
 
     src/futex.cpp
     src/mutex.cpp
+    src/cond_var.cpp
+
+    src/sync.cpp
 
     src/mem_space.cpp
     src/mem_domain.cpp
@@ -388,6 +394,7 @@ if (GTest_FOUND)
         test/mem_fault.cpp
 
         test/mutex_test.cpp
+        test/cond_var_test.cpp
 
         test/queue_test.cpp
 #        test/sync_queue_test.cpp

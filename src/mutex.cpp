@@ -7,23 +7,22 @@ namespace sme {
 
 namespace {
 
-void SetMutexAttributes(pthread_mutexattr_t& attr, Mutex::Type type)
+void SetAttributes(pthread_mutexattr_t& attr, InterprocessVisibility visibility)
 {
     pthread_mutexattr_init(&attr);
 
-    int err_code{};
+    if (visibility != InterprocessVisibility::kShared) 
+        return;
 
-    if (type == Mutex::Type::kShared) {
-        err_code = pthread_mutexattr_setpshared(&attr, PTHREAD_PROCESS_SHARED);
-        if (err_code != 0)
-            throw std::system_error(err_code, std::generic_category(),
-                                    "Can't set process-shared mutex attribute");
+    auto err_code = pthread_mutexattr_setpshared(&attr, PTHREAD_PROCESS_SHARED);
+    if (err_code != 0)
+        throw std::system_error(err_code, std::generic_category(),
+                                "Can't set process-shared mutex attribute");
 
-        err_code = pthread_mutexattr_setrobust(&attr, PTHREAD_MUTEX_ROBUST);
-        if (err_code != 0)
-            throw std::system_error(err_code, std::generic_category(),
-                                    "Can't set robustness mutex attribute");
-    }
+    err_code = pthread_mutexattr_setrobust(&attr, PTHREAD_MUTEX_ROBUST);
+    if (err_code != 0)
+        throw std::system_error(err_code, std::generic_category(),
+                                "Can't set robustness mutex attribute");
 }
 
 void SetMutexConsistent(pthread_mutex_t& mutex)
@@ -39,34 +38,18 @@ void SetMutexConsistent(pthread_mutex_t& mutex)
                                 "Can't relock mutex after consistent state restoring");
 }
 
-auto CreateOptionalMutex(Synchronizer::Type sync_type) -> std::optional<Mutex>
-{
-    switch (sync_type) {
-        case Synchronizer::Type::kNone:
-            return {};
-
-        case Synchronizer::Type::kPrivate:
-            return std::optional<Mutex>{std::in_place, Mutex::Type::kPrivate};
-
-        case Synchronizer::Type::kShared:
-            return std::optional<Mutex>{std::in_place, Mutex::Type::kShared};
-
-        default:
-            throw std::logic_error("Not supported synchronization type");
-    }
-}
-
 }  // namespace
 
-// Mutex implementation
-
-Mutex::Mutex(Type type)
+Mutex::Mutex(InterprocessVisibility visibility) : visibility_{visibility}
 {
     pthread_mutexattr_t attr{};
 
-    SetMutexAttributes(attr, type);
+    SetAttributes(attr, visibility_);
 
     auto err_code = pthread_mutex_init(&mutex_, &attr);
+
+    pthread_mutexattr_destroy(&attr);
+
     if (err_code != 0)
         throw std::system_error(err_code, std::generic_category(), "Can't create mutex");
 }
@@ -75,6 +58,7 @@ Mutex::~Mutex()
 {
     [[maybe_unused]] int err_code{};
 
+    assert(locked_ == 0);
     if (locked_) {
         err_code = pthread_mutex_unlock(&mutex_);
         assert(err_code == 0);
@@ -84,32 +68,36 @@ Mutex::~Mutex()
     assert(err_code == 0);
 }
 
+auto Mutex::GetNativeObject() noexcept -> pthread_mutex_t&
+{
+    return mutex_;
+}
+
 void Mutex::lock()
 {
     auto err_code = pthread_mutex_lock(&mutex_);
     if (err_code == 0) {
-        locked_ = true;
+        ++locked_;
         return;
     }
-    if (err_code != EOWNERDEAD) {
+    if (err_code != EOWNERDEAD) 
         throw std::system_error(err_code, std::generic_category(), "Can't lock mutex");
-    }
 
     SetMutexConsistent(mutex_);
-    locked_ = false;
+    --locked_;
 
     err_code = pthread_mutex_lock(&mutex_);
     if (err_code != 0)
         throw std::system_error(err_code, std::generic_category(),
                                 "Can't lock mutex after consistent state restoring");
-    locked_ = true;
+    ++locked_;
 }
 
 auto Mutex::try_lock() -> bool
 {
     auto err_code = pthread_mutex_trylock(&mutex_);
     if (err_code == 0) {
-        locked_ = true;
+        ++locked_;
         return true;
     } 
     if (err_code == EBUSY) 
@@ -118,11 +106,11 @@ auto Mutex::try_lock() -> bool
         throw std::system_error(err_code, std::generic_category(), "Can't lock mutex");
 
     SetMutexConsistent(mutex_);
-    locked_ = false;
+    --locked_;
 
     err_code = pthread_mutex_trylock(&mutex_);
     if (err_code == 0) {
-        locked_ = true;
+        ++locked_;
         return true;
     } 
     if (err_code == EBUSY)
@@ -134,35 +122,16 @@ auto Mutex::try_lock() -> bool
 
 void Mutex::unlock()
 {
-    if (!locked_)
-        return;
-
     auto err_code = pthread_mutex_unlock(&mutex_);
     if (err_code != 0)
         throw std::system_error(err_code, std::generic_category(), "Can't unlock mutex");
 
-    locked_ = false;
+    --locked_;
 }
 
-// Synchronizer implementation
-
-Synchronizer::Synchronizer(Type type) : mutex_{CreateOptionalMutex(type)} {}
-
-void Synchronizer::lock()
+auto Mutex::GetVisibility() const noexcept -> InterprocessVisibility
 {
-    if (mutex_)
-        mutex_->lock();
-}
-
-auto Synchronizer::try_lock() -> bool
-{
-    return (mutex_ ? mutex_->try_lock() : true);
-}
-
-void Synchronizer::unlock()
-{
-    if (mutex_)
-        mutex_->unlock();
+    return visibility_;
 }
 
 }  // namespace sme

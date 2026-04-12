@@ -10,10 +10,10 @@
 #include "sme/basic_allocator.h"
 #include "sme/internal/mem_space_manip.h"
 #include "sme/mem_ptr.h"
-#include "sme/mutex.h"
 #include "sme/sme_export.h"
+#include "sme/sync.h"
 
-// NOLINTBEGIN(modernize-use-nodiscard)
+// NOLINTBEGIN(modernize-use-nodiscard, google-explicit-constructor)
 
 namespace sme {
 
@@ -79,17 +79,17 @@ class SME_EXPORT MemorySpace final {
        public:
         Iterator() = default;
 
-        auto GetValue() const -> value_type;
-        auto operator*() const -> value_type;
+        [[nodiscard]] auto GetValue() const -> value_type;
+        [[nodiscard]] auto operator*() const -> value_type;
 
-        explicit operator bool() const noexcept;
-        auto operator !() const noexcept -> bool;
+        [[nodiscard]] operator bool() const noexcept;
+        [[nodiscard]] auto operator !() const noexcept -> bool;
 
         auto operator++() -> Iterator&;
         auto operator++(int) -> Iterator;
 
-        auto operator==(const Iterator& other) const noexcept -> bool;
-        auto operator!=(const Iterator& other) const noexcept -> bool;
+        [[nodiscard]] auto operator==(const Iterator& other) const noexcept -> bool;
+        [[nodiscard]] auto operator!=(const Iterator& other) const noexcept -> bool;
 
        private:
         Pointer<MemorySpaceManipulator> mem_manip_{};
@@ -126,6 +126,6 @@ constexpr auto MemorySpace::GetMinimumSpaceSize() noexcept -> size_t
 
 }  // namespace sme
 
-// NOLINTEND(modernize-use-nodiscard)
+// NOLINTEND(modernize-use-nodiscard, google-explicit-constructor)
 
 #endif  // SME_MEM_SPACE_H

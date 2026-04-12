@@ -537,7 +537,7 @@ TEST(MemorySpaceTest, TestEndIterator)
     auto end_iter = mem_space.end();
     ASSERT_FALSE(end_iter);
     ASSERT_TRUE(!end_iter);
-    ASSERT_ANY_THROW(end_iter.GetValue());
+    ASSERT_ANY_THROW((void)end_iter.GetValue());
 }
 
 TEST(MemorySpaceTest, TestPrefixIteration)
