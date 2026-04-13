@@ -95,7 +95,6 @@ add_library(mem_basis INTERFACE
 target_include_directories(mem_basis 
     INTERFACE
         $<BUILD_INTERFACE:${BASE_INCLUDE_DIR}>
-        $<BUILD_INTERFACE:${BUILD_INCLUDE_DIR}>
 
 #        $<INSTALL_INTERFACE:include>
 )
@@ -350,6 +349,11 @@ install(
         ${config_version_file}
     DESTINATION 
         ${install_config_dir}
+)
+
+export(EXPORT SmeTargets 
+    FILE "${config_dir}/SmeTargets.cmake"
+    NAMESPACE Sme::
 )
 
 # UNINSTALLATION
