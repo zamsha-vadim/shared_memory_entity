@@ -10,12 +10,6 @@ namespace msp {
 template <typename T>
 using MemorySpaceAllocator = BasicAllocator<T, MemorySpace>;
 
-template <typename T>
-auto CreateValueAllocatorFor(Pointer<MemorySpace> mem_space) noexcept -> auto
-{
-    return MemorySpaceAllocator<typename T::value_type>{std::move(mem_space)};
-}
-
 }  // namespace msp
 }  // namespace sme
 

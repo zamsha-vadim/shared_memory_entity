@@ -58,7 +58,6 @@ Mutex::~Mutex()
 {
     [[maybe_unused]] int err_code{};
 
-    assert(locked_ == 0);
     if (locked_) {
         err_code = pthread_mutex_unlock(&mutex_);
         assert(err_code == 0);

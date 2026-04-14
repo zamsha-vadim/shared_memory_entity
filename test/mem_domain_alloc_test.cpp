@@ -82,7 +82,7 @@ TEST(MemoryDomainAllocTest, TestStringAllocation)
     auto mem_space = CreateTestMemorySpace();
     auto mem_domain = sme::CreateMemoryDomain(mem_space);
 
-    auto malc = sme::mdm::CreateValueAllocatorFor<sme::mdm::string>(*mem_domain);
+    auto malc = sme::mdm::CreateItemAllocatorFor<sme::mdm::string>(*mem_domain);
 
     constexpr auto some_size{128U};
 
@@ -124,8 +124,7 @@ TEST(MemoryDomainAllocTest, TestVectorAllocation)
     auto mem_space = CreateTestMemorySpace();
     auto mem_domain = sme::CreateMemoryDomain(mem_space);
 
-    auto malc =
-        sme::mdm::CreateValueAllocatorFor<sme::mdm::vector<uint64_t>>(*mem_domain);
+    auto malc = sme::mdm::CreateItemAllocatorFor<sme::mdm::vector<uint64_t>>(*mem_domain);
 
     constexpr auto some_size{123U};
     constexpr uint64_t def_value{1234567UL};
@@ -162,7 +161,7 @@ TEST(MemoryDomainAllocTest, TestCharVectorAllocation)
     auto mem_space = CreateTestMemorySpace();
     auto mem_domain = sme::CreateMemoryDomain(mem_space);
 
-    auto malc = sme::mdm::CreateValueAllocatorFor<sme::mdm::vector<char>>(*mem_domain);
+    auto malc = sme::mdm::CreateItemAllocatorFor<sme::mdm::vector<char>>(*mem_domain);
 
     constexpr auto some_size{123U};
     constexpr char def_value{'V'};
@@ -205,9 +204,9 @@ TEST(MemoryDomainAllocTest, TestStringVectorAllocation)
     auto mem_space = CreateTestMemorySpace();
     auto mem_domain = sme::CreateMemoryDomain(mem_space);
 
-    auto malc = sme::mdm::CreateValueAllocatorFor<sme::mdm::vector<sme::mdm::string>>(
-        *mem_domain);
-    auto str_alc = sme::mdm::CreateValueAllocatorFor<sme::mdm::string>(*mem_domain);
+    auto malc =
+        sme::mdm::CreateItemAllocatorFor<sme::mdm::vector<sme::mdm::string>>(*mem_domain);
+    auto str_alc = sme::mdm::CreateItemAllocatorFor<sme::mdm::string>(*mem_domain);
 
     const sme::mdm::string kSomeString{kSomeChars, str_alc};
     constexpr auto some_size{20U};
@@ -254,7 +253,7 @@ TEST(MemoryDomainAllocTest, TestCharDequeAllocation)
     auto mem_space = CreateTestMemorySpace();
     auto mem_domain = sme::CreateMemoryDomain(mem_space);
 
-    auto malc = sme::mdm::CreateValueAllocatorFor<sme::mdm::deque<char>>(*mem_domain);
+    auto malc = sme::mdm::CreateItemAllocatorFor<sme::mdm::deque<char>>(*mem_domain);
 
     constexpr auto some_size{12U};
     constexpr char def_value{'V'};
@@ -309,7 +308,7 @@ TEST(MemoryDomainAllocTest, TestDequeAllocation)
     auto mem_space = CreateTestMemorySpace();
     auto mem_domain = sme::CreateMemoryDomain(mem_space);
 
-    auto malc = sme::mdm::CreateValueAllocatorFor<sme::mdm::deque<uint64_t>>(*mem_domain);
+    auto malc = sme::mdm::CreateItemAllocatorFor<sme::mdm::deque<uint64_t>>(*mem_domain);
 
     constexpr auto some_size{123U};
     sme::mdm::deque<uint64_t> values(some_size, 1234567LU, malc);
@@ -355,9 +354,9 @@ TEST(MemoryDomainAllocTest, TestStringDequeAllocation)
     auto mem_space = CreateTestMemorySpace();
     auto mem_domain = sme::CreateMemoryDomain(mem_space);
 
-    auto str_alc = sme::mdm::CreateValueAllocatorFor<sme::mdm::string>(*mem_domain);
+    auto str_alc = sme::mdm::CreateItemAllocatorFor<sme::mdm::string>(*mem_domain);
     auto malc =
-        sme::mdm::CreateValueAllocatorFor<sme::mdm::deque<sme::mdm::string>>(*mem_domain);
+        sme::mdm::CreateItemAllocatorFor<sme::mdm::deque<sme::mdm::string>>(*mem_domain);
 
     constexpr auto some_size{123U};
     sme::mdm::deque<sme::mdm::string> values(some_size, sme::mdm::string{str_alc}, malc);
@@ -391,7 +390,7 @@ TEST(MemoryDomainAllocTest, TestListAllocation)
     auto mem_space = CreateTestMemorySpace();
     auto mem_domain = sme::CreateMemoryDomain(mem_space);
 
-    auto malc = sme::mdm::CreateValueAllocatorFor<sme::mdm::list<uint64_t>>(*mem_domain);
+    auto malc = sme::mdm::CreateItemAllocatorFor<sme::mdm::list<uint64_t>>(*mem_domain);
 
     auto some_size{1U};
     constexpr uint64_t def_value{11223344556677UL};
@@ -425,9 +424,9 @@ TEST(MemoryDomainAllocTest, TestStringListAllocation)
     auto mem_space = CreateTestMemorySpace();
     auto mem_domain = sme::CreateMemoryDomain(mem_space);
 
-    auto str_alc = sme::mdm::CreateValueAllocatorFor<sme::mdm::string>(*mem_domain);
+    auto str_alc = sme::mdm::CreateItemAllocatorFor<sme::mdm::string>(*mem_domain);
     auto malc =
-        sme::mdm::CreateValueAllocatorFor<sme::mdm::list<sme::mdm::string>>(*mem_domain);
+        sme::mdm::CreateItemAllocatorFor<sme::mdm::list<sme::mdm::string>>(*mem_domain);
 
     constexpr auto some_size{123U};
     const sme::mdm::string def_value{kSomeChars, str_alc};
@@ -464,7 +463,7 @@ TEST(MemoryDomainAllocTest, TestForwardListAllocation)
     auto mem_domain = sme::CreateMemoryDomain(mem_space);
 
     auto malc =
-        sme::mdm::CreateValueAllocatorFor<sme::mdm::forward_list<uint64_t>>(*mem_domain);
+        sme::mdm::CreateItemAllocatorFor<sme::mdm::forward_list<uint64_t>>(*mem_domain);
 
     constexpr auto some_size{123U};
     constexpr uint64_t def_value{1234567UL};
@@ -496,9 +495,9 @@ TEST(MemoryDomainAllocTest, TestStringForwardListAllocation)
     auto mem_space = CreateTestMemorySpace();
     auto mem_domain = sme::CreateMemoryDomain(mem_space);
 
-    auto str_alc = sme::mdm::CreateValueAllocatorFor<sme::mdm::string>(*mem_domain);
+    auto str_alc = sme::mdm::CreateItemAllocatorFor<sme::mdm::string>(*mem_domain);
     auto malc =
-        sme::mdm::CreateValueAllocatorFor<sme::mdm::forward_list<sme::mdm::string>>(
+        sme::mdm::CreateItemAllocatorFor<sme::mdm::forward_list<sme::mdm::string>>(
             *mem_domain);
 
     constexpr auto some_size{123U};
@@ -532,8 +531,8 @@ TEST(MemoryDomainAllocTest, TestMapAllocation)
     auto mem_space = CreateTestMemorySpace();
     auto mem_domain = sme::CreateMemoryDomain(mem_space);
 
-    auto str_alc = sme::mdm::CreateValueAllocatorFor<sme::mdm::string>(*mem_domain);
-    auto malc = sme::mdm::CreateValueAllocatorFor<sme::mdm::map<int, sme::mdm::string>>(
+    auto str_alc = sme::mdm::CreateItemAllocatorFor<sme::mdm::string>(*mem_domain);
+    auto malc = sme::mdm::CreateItemAllocatorFor<sme::mdm::map<int, sme::mdm::string>>(
         *mem_domain);
 
     sme::mdm::map<int, sme::mdm::string> values(
@@ -571,8 +570,8 @@ TEST(MemoryDomainAllocTest, TestStringMapAllocation)
     auto mem_space = CreateTestMemorySpace();
     auto mem_domain = sme::CreateMemoryDomain(mem_space);
 
-    auto str_alc = sme::mdm::CreateValueAllocatorFor<sme::mdm::string>(*mem_domain);
-    auto malc = sme::mdm::CreateValueAllocatorFor<
+    auto str_alc = sme::mdm::CreateItemAllocatorFor<sme::mdm::string>(*mem_domain);
+    auto malc = sme::mdm::CreateItemAllocatorFor<
         sme::mdm::map<sme::mdm::string, sme::mdm::string>>(*mem_domain);
 
     sme::mdm::map<sme::mdm::string, sme::mdm::string> values(
@@ -616,9 +615,9 @@ TEST(MemoryDomainAllocTest, TestUnorderedMapAllocation)
     auto mem_space = CreateTestMemorySpace();
     auto mem_domain = sme::CreateMemoryDomain(mem_space);
 
-    auto str_alc = sme::mdm::CreateValueAllocatorFor<sme::mdm::string>(*mem_domain);
+    auto str_alc = sme::mdm::CreateItemAllocatorFor<sme::mdm::string>(*mem_domain);
     auto malc =
-        sme::mdm::CreateValueAllocatorFor<sme::mdm::unordered_map<int, sme::mdm::string>>(
+        sme::mdm::CreateItemAllocatorFor<sme::mdm::unordered_map<int, sme::mdm::string>>(
             *mem_domain);
 
     sme::mdm::unordered_map<int, sme::mdm::string> values{malc};
@@ -648,8 +647,8 @@ TEST(MemoryDomainAllocTest, TestStringUnorderedMapAllocation)
     auto mem_space = CreateTestMemorySpace();
     auto mem_domain = sme::CreateMemoryDomain(mem_space);
 
-    auto str_alc = sme::mdm::CreateValueAllocatorFor<sme::mdm::string>(*mem_domain);
-    auto malc = sme::mdm::CreateValueAllocatorFor<
+    auto str_alc = sme::mdm::CreateItemAllocatorFor<sme::mdm::string>(*mem_domain);
+    auto malc = sme::mdm::CreateItemAllocatorFor<
         sme::mdm::unordered_map<sme::mdm::string, sme::mdm::string>>(*mem_domain);
 
     sme::mdm::unordered_map<sme::mdm::string, sme::mdm::string> values{malc};
@@ -693,7 +692,7 @@ TEST(MemoryDomainAllocTest, TestSetAllocation)
     auto mem_space = CreateTestMemorySpace();
     auto mem_domain = sme::CreateMemoryDomain(mem_space);
 
-    auto malc = sme::mdm::CreateValueAllocatorFor<sme::mdm::set<uint64_t>>(*mem_domain);
+    auto malc = sme::mdm::CreateItemAllocatorFor<sme::mdm::set<uint64_t>>(*mem_domain);
 
     sme::mdm::set<uint64_t> values{{1U, 2U}, malc};
 
@@ -713,9 +712,9 @@ TEST(MemoryDomainAllocTest, TestStringSetAllocation)
     auto mem_space = CreateTestMemorySpace();
     auto mem_domain = sme::CreateMemoryDomain(mem_space);
 
-    auto str_alc = sme::mdm::CreateValueAllocatorFor<sme::mdm::string>(*mem_domain);
+    auto str_alc = sme::mdm::CreateItemAllocatorFor<sme::mdm::string>(*mem_domain);
     auto malc =
-        sme::mdm::CreateValueAllocatorFor<sme::mdm::set<sme::mdm::string>>(*mem_domain);
+        sme::mdm::CreateItemAllocatorFor<sme::mdm::set<sme::mdm::string>>(*mem_domain);
 
     sme::mdm::set<sme::mdm::string> values(
         {{sme::mdm::string("1", str_alc)}, {sme::mdm::string("2", str_alc)}}, malc);
@@ -738,7 +737,7 @@ TEST(MemoryDomainAllocTest, TestUnorderedSetAllocation)
     auto mem_domain = sme::CreateMemoryDomain(mem_space);
 
     auto malc =
-        sme::mdm::CreateValueAllocatorFor<sme::mdm::unordered_set<uint64_t>>(*mem_domain);
+        sme::mdm::CreateItemAllocatorFor<sme::mdm::unordered_set<uint64_t>>(*mem_domain);
 
     sme::mdm::unordered_set<uint64_t> values{malc};
     values = {1, 2};
@@ -759,9 +758,9 @@ TEST(MemoryDomainAllocTest, TestStringUnorderedSetAllocation)
     auto mem_space = CreateTestMemorySpace();
     auto mem_domain = sme::CreateMemoryDomain(mem_space);
 
-    auto str_alc = sme::mdm::CreateValueAllocatorFor<sme::mdm::string>(*mem_domain);
+    auto str_alc = sme::mdm::CreateItemAllocatorFor<sme::mdm::string>(*mem_domain);
     auto malc =
-        sme::mdm::CreateValueAllocatorFor<sme::mdm::unordered_set<sme::mdm::string>>(
+        sme::mdm::CreateItemAllocatorFor<sme::mdm::unordered_set<sme::mdm::string>>(
             *mem_domain);
 
     sme::mdm::unordered_set<sme::mdm::string> values{malc};

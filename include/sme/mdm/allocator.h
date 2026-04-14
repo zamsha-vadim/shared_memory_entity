@@ -13,13 +13,16 @@ namespace mdm {
 template <typename T>
 using MemoryDomainAllocator = BasicAllocator<T, MemoryDomain>;
 
-template <typename T>
 using MemoryDomainByteAllocator = BasicAllocator<std::byte, MemoryDomain>;
 
-template <typename T>
-auto SME_EXPORT CreateValueAllocatorFor(MemoryDomain& mem_domain) noexcept -> auto
+template <typename ContainerType>
+using ItemAllocator = MemoryDomainAllocator<typename ContainerType::value_type>;
+
+template <typename ContainerType>
+auto SME_EXPORT CreateItemAllocatorFor(MemoryDomain& mem_domain) noexcept
+    -> ItemAllocator<ContainerType>
 {
-    return MemoryDomainAllocator<typename T::value_type>{mem_domain};
+    return ItemAllocator<ContainerType>{mem_domain};
 }
 
 }  // namespace mdm
