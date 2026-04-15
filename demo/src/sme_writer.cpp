@@ -65,10 +65,10 @@ template <typename ValueT>
 auto Send(ReferenceLayout& ref_layout, sme::mdm::UniquePtr<SimpleObject<ValueT>>& obj)
     -> bool
 {
-    std::unique_lock<sme::Mutex> ml{ref_layout.mutex};
+    std::lock_guard<sme::Mutex> mutex_lock{ref_layout.mutex};
 
-//    if (ref_layout.simple_object == nullptr)
-//        return false;
+    //    if (ref_layout.simple_object == nullptr)
+    //        return false;
 
     ref_layout.simple_object_type =
         sme::mdm::MakeStringUnique(*ref_layout.simple_object_domain, typeid(*obj).name());
@@ -79,6 +79,16 @@ auto Send(ReferenceLayout& ref_layout, sme::mdm::UniquePtr<SimpleObject<ValueT>>
     ref_layout.cond_var.NotifyOne();
 
     return true;
+}
+
+void WaitProcessed(ReferenceLayout& ref_layout) {
+    std::unique_lock<sme::Mutex> mutex_lock{ref_layout.mutex};
+
+    while (ref_layout.simple_object != nullptr) {
+        if (!ref_layout.cond_var.WaitFor(mutex_lock, std::chrono::seconds(60))) {
+            return;
+        }
+    }
 }
 
 int main()
@@ -106,9 +116,10 @@ int main()
     Print(*td_obj);
 
     Send(*ref_layout, td_obj);
+    WaitProcessed(*ref_layout);
 
-//    auto month_obj = CreateMonth("may", *simple_obj_domain);
-//    Print(*month_obj);
+    //    auto month_obj = CreateMonth("may", *simple_obj_domain);
+    //    Print(*month_obj);
 
     return EXIT_SUCCESS;
 }

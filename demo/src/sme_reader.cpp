@@ -24,13 +24,15 @@ int main()
 
     ReferenceLayout& ref_layout = sme::msp::GetRoot<ReferenceLayout>(mem_space);
 
-    std::unique_lock<sme::Mutex> ml{ref_layout.mutex};
+    std::unique_lock<sme::Mutex> mutex_lock{ref_layout.mutex};
 
     assert(ref_layout.check_id1 == kCheckValidId);
     assert(ref_layout.check_id2 == ~kCheckValidId);
 
-    if (!ref_layout.cond_var.WaitFor(ml, std::chrono::seconds(5))) {
-        return EXIT_FAILURE;
+    while (ref_layout.simple_object == nullptr) {
+        if (!ref_layout.cond_var.WaitFor(mutex_lock, std::chrono::seconds(60))) {
+            return EXIT_FAILURE;
+        }
     }
 
     assert(ref_layout.simple_object != nullptr);
@@ -43,6 +45,13 @@ int main()
         sme::Pointer<IntObject> obj =
             reinterpret_cast<IntObject*>(ref_layout.simple_object.GetAddress());
         Print(*obj);
+
+        sme::Delete(*(ref_layout.simple_object_domain), obj);
+
+        ref_layout.simple_object = nullptr;
+        ref_layout.simple_object_type.release();
+
+        ref_layout.cond_var.NotifyOne();
     }
 
     return EXIT_SUCCESS;
