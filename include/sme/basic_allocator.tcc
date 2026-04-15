@@ -95,7 +95,7 @@ BasicAllocator<T, MemoryAreaType>::BasicAllocator()
 {
     auto curr_area = AllocationContext<MemoryAreaType>::GetCurrentArea();
     if (curr_area == nullptr)
-        throw std::runtime_error("None default allocation area");
+        throw std::logic_error("There is no default allocation area");
 
     area_ = std::move(curr_area);
 }

@@ -6,6 +6,7 @@
 #include <iostream>
 
 #include <sme/mapped_obj.h>
+#include <sme/mdm/unique_ptr.h>
 #include <sme/mem_space.h>
 #include <sme/msp/root_obj.h>
 #include <sme/shm.h>
@@ -56,17 +57,54 @@ void Print(const T& obj)
         for (const auto& measure : accept_measures)
             std::cout << "         " << measure << std::endl;
     }
+
+    std::cout << std::endl;
 }
 
-auto CreateSimpleObject(sme::MemoryDomain& mem_domain) //-> SimpleObject
+auto CreateTimeDuration(int value, sme::MemoryDomain& mem_domain)
+    -> sme::mdm::UniquePtr<IntObject>
 {
-    std::array<const char*, 4> measures = {"msec", "sec", "min", "hour"};
+    static const std::array<const char*, 4> measures = {"msec", "sec", "min", "hour"};
 
-    SimpleObject<int> iv{"Time duration", measures, mem_domain};
-    iv.SetValue(123);
-    iv.SetMeasure(measures[1]);
+    auto iv = sme::MakeUnique<IntObject>(mem_domain, "time duration", value, measures,
+                                         mem_domain);
+    iv->SetMeasure(measures[1]);
 
-//    return iv;
+    return iv;
+}
+
+auto CreateMonth(const char* value, sme::MemoryDomain& mem_domain)
+    -> sme::mdm::UniquePtr<StringObject>
+{
+    static const std::array<const char*, 3> dayAmount = {"30", "31", "28"};
+
+    sme::mdm::string sval{value, sme::mdm::ItemAllocator<sme::mdm::string>(mem_domain)};
+
+    auto sv =
+        sme::MakeUnique<StringObject>(mem_domain, "month", sval, dayAmount, mem_domain);
+    sv->SetMeasure(dayAmount[0]);
+
+    return sv;
+}
+
+template <typename ValueT>
+auto Send(ReferenceLayout& ref_layout, sme::mdm::UniquePtr<SimpleObject<ValueT>>& obj)
+    -> bool
+{
+    std::unique_lock<sme::Mutex> ml{ref_layout.mutex};
+
+    if (ref_layout.simple_object == nullptr)
+        return false;
+
+    ref_layout.simple_object_type =
+        sme::mdm::MakeStringUnique(*ref_layout.simple_object_domain, typeid(*obj).name());
+
+    sme::Pointer<void> ptr = obj.release();
+    ref_layout.simple_object = ptr;
+
+    ref_layout.cond_var.NotifyOne();
+
+    return true;
 }
 
 int main()
@@ -82,16 +120,20 @@ int main()
 
     sme::Pointer<sme::MemoryDomain> simple_obj_domain =
         sme::CreateMemoryDomain(*mem_space, mem_space->GetCapacity() / 2);
+    ref_layout->simple_object_domain = simple_obj_domain;
 
+/*
     sme::Pointer<sme::MemoryDomain> composite_obj_domain =
         sme::CreateMemoryDomain(*mem_space, mem_space->GetCapacity() / 2 - 1000);
-
-    ref_layout->simple_object_domain = simple_obj_domain;
     ref_layout->composite_object_domain = composite_obj_domain;
+*/
 
-    //CreateSimpleObject(*simple_object_domain);
+    auto td_obj = CreateTimeDuration(123, *simple_obj_domain);
+    Print(*td_obj);
+    Send(*ref_layout, td_obj);
 
-    // std::cout << mem_space.GetCapacity() << std::endl;
+    auto month_obj = CreateMonth("may", *simple_obj_domain);
+    Print(*month_obj);
 
     return EXIT_SUCCESS;
 }
