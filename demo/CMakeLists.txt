@@ -28,12 +28,19 @@ find_package(Sme REQUIRED)
 add_compile_options(-pipe -Wall -Wextra)
 
 add_executable(sme_writer
-    src/simple_obj.cpp
-
     src/sme_writer.cpp
 )
 
 target_link_libraries(sme_writer
+    Threads::Threads
+    Sme::sme
+)
+
+add_executable(sme_reader
+    src/sme_reader.cpp
+)
+
+target_link_libraries(sme_reader
     Threads::Threads
     Sme::sme
 )

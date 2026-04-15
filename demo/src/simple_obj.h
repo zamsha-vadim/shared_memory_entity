@@ -2,10 +2,10 @@
 #define SIMPLE_OBJ_H
 
 #include <algorithm>
+#include <iostream>
 
-#include <sme/mdm/string.h>
-// #include <sme/mdm/vector.h>
 #include <sme/mdm/deque.h>
+#include <sme/mdm/string.h>
 #include <sme/mem_ptr.h>
 
 template <typename T>
@@ -117,6 +117,23 @@ auto SimpleObject<T>::GetAcceptableMeasures() const noexcept
     -> const MeasureContainerType&
 {
     return accept_measures_;
+}
+
+template <typename T>
+void Print(const SimpleObject<T>& obj)
+{
+    std::cout << "name:    " << obj.GetName() << std::endl
+              << "value    " << obj.GetValue() << std::endl
+              << "measure: " << obj.GetMeasure() << std::endl;
+
+    const auto& accept_measures = obj.GetAcceptableMeasures();
+    if (!accept_measures.empty()) {
+        std::cout << "acceptable measures:" << std::endl;
+        for (const auto& measure : accept_measures)
+            std::cout << "         " << measure << std::endl;
+    }
+
+    std::cout << std::endl;
 }
 
 #endif  // SIMPLE_OBJ_H

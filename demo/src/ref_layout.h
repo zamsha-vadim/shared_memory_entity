@@ -8,7 +8,11 @@
 
 #include "simple_obj.h"
 
+constexpr uint64_t kCheckValidId{15042026UL};
+
 struct ReferenceLayout {
+    uint64_t check_id1{kCheckValidId};
+
     sme::Mutex mutex{sme::InterprocessVisibility::kShared};
     sme::ConditionVariable cond_var{sme::InterprocessVisibility::kShared};
 
@@ -16,7 +20,9 @@ struct ReferenceLayout {
     sme::Pointer<void*> simple_object;
     sme::mdm::UniquePtr<sme::mdm::string> simple_object_type;
 
-    sme::Pointer<sme::MemoryDomain> composite_object_domain;
+    uint64_t check_id2{~kCheckValidId};
+
+//    sme::Pointer<sme::MemoryDomain> composite_object_domain;
 };
 
 #endif // REF_LAYOUT_H

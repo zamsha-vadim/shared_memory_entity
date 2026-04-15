@@ -17,16 +17,7 @@
 constexpr size_t kSomeSpaceSize{1024UL * 128};
 std::array<char, kSomeSpaceSize> some_memory{};
 
-/*
-[[maybe_unused]] auto CreateTestMemorySpace(size_t size = some_memory.size())
-    -> sme::MemorySpace
-{
-    assert(size <= some_memory.size());
-    some_memory.fill(0);
-    return sme::MemorySpace{sme::Pointer<void>{some_memory.data()}, size};
-}
-*/
-/*
+/* NEEDED: USE after
 std::cout << mem_space->GetCapacity() << std::endl;
 
 for (int i = 0; ; i++) {
@@ -43,23 +34,6 @@ for (int i = 0; ; i++) {
     }
 }
 */
-
-template <typename T>
-void Print(const T& obj)
-{
-    std::cout << "name:    " << obj.GetName() << std::endl
-              << "value    " << obj.GetValue() << std::endl
-              << "measure: " << obj.GetMeasure() << std::endl;
-
-    const auto& accept_measures = obj.GetAcceptableMeasures();
-    if (!accept_measures.empty()) {
-        std::cout << "acceptable measures:" << std::endl;
-        for (const auto& measure : accept_measures)
-            std::cout << "         " << measure << std::endl;
-    }
-
-    std::cout << std::endl;
-}
 
 auto CreateTimeDuration(int value, sme::MemoryDomain& mem_domain)
     -> sme::mdm::UniquePtr<IntObject>
@@ -93,8 +67,8 @@ auto Send(ReferenceLayout& ref_layout, sme::mdm::UniquePtr<SimpleObject<ValueT>>
 {
     std::unique_lock<sme::Mutex> ml{ref_layout.mutex};
 
-    if (ref_layout.simple_object == nullptr)
-        return false;
+//    if (ref_layout.simple_object == nullptr)
+//        return false;
 
     ref_layout.simple_object_type =
         sme::mdm::MakeStringUnique(*ref_layout.simple_object_domain, typeid(*obj).name());
@@ -130,10 +104,11 @@ int main()
 
     auto td_obj = CreateTimeDuration(123, *simple_obj_domain);
     Print(*td_obj);
+
     Send(*ref_layout, td_obj);
 
-    auto month_obj = CreateMonth("may", *simple_obj_domain);
-    Print(*month_obj);
+//    auto month_obj = CreateMonth("may", *simple_obj_domain);
+//    Print(*month_obj);
 
     return EXIT_SUCCESS;
 }
