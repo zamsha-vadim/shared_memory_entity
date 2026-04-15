@@ -1,0 +1,39 @@
+cmake_minimum_required(VERSION 3.22 FATAL_ERROR)
+
+project(sme_demo 
+    LANGUAGES CXX
+)
+
+#set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} "/home/vadim/Projects/shared_memory_entity/build/install/usr/local")
+#set(Sme_DIR /home/vadim/Projects/shared_memory_entity/build/share/cmake)
+
+if(NOT Sme_DIR)
+    if(EXISTS ../build)
+        set(Sme_DIR ../build/share/cmake)
+    endif()
+endif()
+
+### Compile/Build settings
+
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_STANDARD 17)
+
+set(THREADS_PREFER_PTHREAD_FLAG TRUE)
+find_package(Threads REQUIRED)
+
+find_package(Sme REQUIRED)
+
+add_compile_options(-pipe -Wall -Wextra)
+
+add_executable(sme_writer
+    src/simple_obj.cpp
+
+    src/sme_writer.cpp
+)
+
+target_link_libraries(sme_writer
+    Threads::Threads
+    Sme::sme
+)
