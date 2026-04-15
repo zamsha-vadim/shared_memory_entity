@@ -786,7 +786,7 @@ TEST(MemoryDomainAllocTest, TestUniquePtrForIntegralType)
     auto mem_space = CreateTestMemorySpace();
     auto mem_domain = sme::CreateMemoryDomain(mem_space);
 
-    auto obj = sme::make_unique<uint64_t>(*mem_domain);
+    auto obj = sme::MakeUnique<uint64_t>(*mem_domain);
     ASSERT_TRUE(obj != nullptr);
 
     ASSERT_NO_THROW(obj.reset(););
@@ -799,7 +799,7 @@ TEST(MemoryDomainAllocTest, TestUniquePtrForString)
 
     using String = sme::mdm::string;
 
-    auto obj = sme::make_unique<String>(*mem_domain, String::allocator_type{*mem_domain});
+    auto obj = sme::MakeUnique<String>(*mem_domain, String::allocator_type{*mem_domain});
     ASSERT_TRUE(obj != nullptr);
 
     ASSERT_NO_THROW(obj.reset(););

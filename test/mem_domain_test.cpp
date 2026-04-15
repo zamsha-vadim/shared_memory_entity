@@ -55,6 +55,35 @@ TEST(MemoryDomainTest, TestValidConstructor)
     EXPECT_NO_THROW(sme::MemoryDomain{mem_space});
 }
 
+TEST(MemoryDomainTest, TestValidConstructorForPredefinedSize)
+{
+    auto mem_space = CreateTestMemorySpace();
+    auto some_valid_size = mem_space.GetCapacity() / 2;
+
+    sme::MemoryDomain md{mem_space, some_valid_size};
+
+    auto ptr = md.Allocate(some_valid_size);
+    ASSERT_TRUE(ptr != nullptr);
+
+    md.Deallocate(ptr);
+
+    ptr = md.Allocate(some_valid_size);
+    ASSERT_TRUE(ptr != nullptr);
+
+    ASSERT_TRUE(md.Allocate(1) == nullptr);
+
+    md.Deallocate(ptr);
+
+    ptr = md.Allocate(some_valid_size / 2);
+    ASSERT_TRUE(ptr != nullptr);
+
+    auto ptr2 = md.Allocate(some_valid_size / 4);
+    ASSERT_TRUE(ptr2 != nullptr);
+
+    auto ptr3 = md.Allocate(some_valid_size / 5);
+    ASSERT_TRUE(ptr3 != nullptr);
+}
+
 TEST(MemoryDomainTest, TestAllocateOneByte)
 {
     auto mem_space = CreateTestMemorySpace();
@@ -215,7 +244,7 @@ TEST(MemoryDomainTest, TestDisableAllocationExtensibleForTwoSequentialAllocation
     ASSERT_TRUE(ptr2 == nullptr);
 }
 
-TEST(MemoryDomainTest, TestDisableAllocationExtensibleForAllocationAndFreeAndAllocation)
+TEST(MemoryDomainTest, TestDisableAllocationExtensibleForAllocationAndFreeAndAgainAllocation)
 {
     auto mem_space = CreateTestMemorySpace();
 
@@ -241,7 +270,7 @@ TEST(MemoryDomainTest, TestDisableAllocationExtensibleForAllocationAndFreeAndAll
     ASSERT_TRUE(md.GetAddressState(ptr2) == sme::MemoryDomain::AddressState::kUsed);
 
     auto ptr3 = md.Allocate(some_size);
-    ASSERT_TRUE(ptr3 == nullptr);
+    ASSERT_TRUE(ptr3 != nullptr);
 
     auto ptr4 = md.Allocate(1);
     ASSERT_TRUE(ptr4 == nullptr);

@@ -6,15 +6,13 @@
 #include <cstddef>
 #include <limits>
 
+#include "sme/ipvt.h"
 #include "sme/sme_export.h"
 
 namespace sme {
 
 class SME_EXPORT MemoryMap final {
     friend class SharedMemoryFile;
-
-   public:
-    enum class ShareType { kPrivate, kShared };
 
    public:
     MemoryMap() = default;
@@ -41,14 +39,17 @@ class SME_EXPORT MemoryMap final {
     void Unmap();
 
    private:
-    MemoryMap(int file_desc, size_t size, off_t offset, ShareType share_type);
+    MemoryMap(int file_desc,
+              size_t size,
+              off_t offset,
+              InterprocessVisibility share_type);
 
     void Move(MemoryMap& other) noexcept;
 
    private:
     void* addr_{nullptr};
     size_t size_{0};
-    ShareType share_type_{ShareType::kPrivate};
+    InterprocessVisibility share_type_{InterprocessVisibility::kPrivate};
 };
 
 }  // namespace sme

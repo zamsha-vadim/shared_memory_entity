@@ -91,7 +91,7 @@ void MemoryDomainSegment::ShrinkData(Pointer<MemoryDomainRedZoneBlock> last_bloc
 }
 
 auto MemoryDomainSegment::GetNextSegment() const noexcept
-    -> const Pointer<const MemoryDomainSegment>
+    -> Pointer<const MemoryDomainSegment>
 {
     return next_segment_;
 }
@@ -108,25 +108,6 @@ void MemoryDomainSegment::SetNextSegment(Pointer<MemoryDomainSegment> seg) noexc
         return;
 
     next_segment_ = std::move(seg);
-}
-
-auto AllocateMemoryDomainSegment(void* mem, MemoryDomainSegment::Size mem_size)
-    -> Pointer<MemoryDomainSegment>
-{
-    assert(mem != nullptr);
-    if (mem == nullptr)
-        throw std::invalid_argument("Segment memory location is null");
-
-    return {new (mem) MemoryDomainSegment{mem_size}};
-}
-
-void DeallocateMemoryDomainSegment(Pointer<MemoryDomainSegment>& segment) noexcept
-{
-    if (segment == nullptr)
-        return;
-
-    segment->~MemoryDomainSegment();
-    segment.Reset();
 }
 
 }  // namespace sme

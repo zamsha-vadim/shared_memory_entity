@@ -3,7 +3,7 @@
 
 namespace sme {
 
-enum class SyncronizationType { kSpin, kMutex };
+enum class SyncronizationType { kLockFree, kMutex };
 
 }  // namespace sme
 

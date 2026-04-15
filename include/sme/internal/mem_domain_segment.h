@@ -40,7 +40,7 @@ class MemoryDomainSegment {
 
     void ShrinkData(Pointer<MemoryDomainRedZoneBlock> last_block);
 
-    auto GetNextSegment() const noexcept -> const Pointer<const MemoryDomainSegment>;
+    auto GetNextSegment() const noexcept -> Pointer<const MemoryDomainSegment>;
     auto GetNextSegment() noexcept -> Pointer<MemoryDomainSegment>;
     void SetNextSegment(Pointer<MemoryDomainSegment> seg) noexcept;
 
@@ -64,12 +64,6 @@ constexpr auto MemoryDomainSegment::GetMinimumDataCapacity() noexcept -> Size
     return (MemoryDomainBlock::GetMinimumBlockSize() +
             MemoryDomainRedZoneBlock::kBlockSize);
 }
-
-[[nodiscard]] auto AllocateMemoryDomainSegment(void* mem,
-                                               MemoryDomainSegment::Size mem_size)
-    -> Pointer<MemoryDomainSegment>;
-
-void DeallocateMemoryDomainSegment(Pointer<MemoryDomainSegment>& segment) noexcept;
 
 }  // namespace sme
 

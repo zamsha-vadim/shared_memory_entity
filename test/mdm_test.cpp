@@ -82,7 +82,7 @@ Checker<ControlDataType, SharedDataType>::Checker(ControlDataCreator ctrl_data_c
 template <typename ControlDataType, typename SharedDataType>
 void Checker<ControlDataType, SharedDataType>::BuildSharedData(sme::MemoryMap& mem_map)
 {
-    auto* mem_space = sme::Construct<sme::MemorySpace>(mem_map, 0);
+    auto* mem_space = sme::ConstructMemorySpace(mem_map, 0);
     auto* hdr_ptr = sme::msp::CreateRoot<MemoryHeader>(*mem_space);
     auto mem_domain =
         sme::CreateMemoryDomain(*mem_space, sme::Synchronizer::Type::kShared);

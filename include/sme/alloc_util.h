@@ -124,10 +124,15 @@ class SME_EXPORT Deleter final {
 
 template <typename T,
           typename MemoryAreaType,
-          typename DeleterType = Deleter<T, MemoryAreaType>,
+          typename DeleterType = sme::Deleter<T, MemoryAreaType>>
+using UniquePtr = std::unique_ptr<T, DeleterType>;
+
+template <typename T,
+          typename MemoryAreaType,
+          typename DeleterType = sme::Deleter<T, MemoryAreaType>,
           typename... Arg>
-[[nodiscard]] auto SME_EXPORT make_unique(MemoryAreaType& mem_area, Arg&&... args)
-    -> std::unique_ptr<T, DeleterType>
+[[nodiscard]] auto SME_EXPORT MakeUnique(MemoryAreaType& mem_area, Arg&&... args)
+    -> sme::UniquePtr<T, MemoryAreaType, DeleterType>
 {
     static_assert(IsAllocator<MemoryAreaType>(),
                   "MemoryAreaType template argument must have method \"Pointer<void> "

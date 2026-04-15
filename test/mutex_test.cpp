@@ -52,7 +52,7 @@ TEST(MutexTest, TestConstructorForSharedType)
 TEST(MutexDeathTest, TestSharedLock)
 {
     auto shm = sme::SharedMemoryFile::MapAnonymousMemory(
-        sizeof(sme::Mutex), sme::MemoryMap::ShareType::kShared);
+        sizeof(sme::Mutex), sme::InterprocessVisibility::kShared);
     auto* mutex =
         sme::Construct<sme::Mutex>(shm, 0, sme::InterprocessVisibility::kShared);
 
@@ -85,7 +85,7 @@ TEST(MutexDeathTest, TestSharedLock)
 TEST(MutexDeathTest, TestSharedMutexConsistent)
 {
     auto shm = sme::SharedMemoryFile::MapAnonymousMemory(
-        sizeof(sme::Mutex), sme::MemoryMap::ShareType::kShared);
+        sizeof(sme::Mutex), sme::InterprocessVisibility::kShared);
     auto* mutex =
         sme::Construct<sme::Mutex>(shm, 0, sme::InterprocessVisibility::kShared);
 
@@ -105,7 +105,7 @@ TEST(MutexDeathTest, TestSharedMutexConsistent)
 TEST(MutexDeathTest, TestSharedMutexInvalidUnlock)
 {
     auto shm = sme::SharedMemoryFile::MapAnonymousMemory(
-        sizeof(sme::Mutex), sme::MemoryMap::ShareType::kShared);
+        sizeof(sme::Mutex), sme::InterprocessVisibility::kShared);
     auto* mutex =
         sme::Construct<sme::Mutex>(shm, 0, sme::InterprocessVisibility::kShared);
 

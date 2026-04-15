@@ -252,7 +252,7 @@ TEST(SharedMemoryTest, TestAnonymousMemory)
     const char* kSomeStr2 = "Hello Peace";
 
     auto shm = sme::SharedMemoryFile::MapAnonymousMemory(
-        100, sme::MemoryMap::ShareType::kShared);
+        100, sme::InterprocessVisibility::kShared);
 
     char* s = static_cast<char*>(shm.GetAddress());
     strcpy(s, kSomeStr1);
@@ -276,7 +276,7 @@ TEST(SharedMemoryTest, TestSharedObject)
     auto smf = CreateTestSharedMemoryFile(GetUniqueName(), kSomeSize);
     SharedMemoryFileDeleter smfd{smf};
 
-    sme::MemoryMapRequest mmr{kSomeSize, 0, sme::MemoryMap::ShareType::kShared};
+    sme::MemoryMapRequest mmr{kSomeSize, 0, sme::InterprocessVisibility::kShared};
 
     {
         auto mem0 = smf.MapMemory(mmr);
@@ -329,7 +329,7 @@ TEST(SharedMemoryTest, TestCreateForValidLocation)
     auto smf = CreateTestSharedMemoryFile(GetUniqueName(), kSomeSize);
     SharedMemoryFileDeleter smfd{smf};
 
-    sme::MemoryMapRequest mmr{kSomeSize, 0, sme::MemoryMap::ShareType::kShared};
+    sme::MemoryMapRequest mmr{kSomeSize, 0, sme::InterprocessVisibility::kShared};
     auto mem = smf.MapMemory(mmr);
 
     ASSERT_NO_THROW((void)sme::Construct<Foo>(mem, alignof(Foo)));
@@ -351,7 +351,7 @@ TEST(SharedMemoryTest, TestGetObjectForValidLocation)
     auto smf = CreateTestSharedMemoryFile(GetUniqueName(), kSomeSize);
     SharedMemoryFileDeleter smfd{smf};
 
-    sme::MemoryMapRequest mmr{kSomeSize, 0, sme::MemoryMap::ShareType::kShared};
+    sme::MemoryMapRequest mmr{kSomeSize, 0, sme::InterprocessVisibility::kShared};
     auto mem = smf.MapMemory(mmr);
 
     ASSERT_NO_THROW((void)sme::GetObject<Foo>(mem, alignof(Foo)));
@@ -372,7 +372,7 @@ TEST(SharedMemoryTest, TestCreateForInvalidLocation)
     auto smf = CreateTestSharedMemoryFile(GetUniqueName(), kSomeSize);
     SharedMemoryFileDeleter smfd{smf};
 
-    sme::MemoryMapRequest mmr{kSomeSize, 0, sme::MemoryMap::ShareType::kShared};
+    sme::MemoryMapRequest mmr{kSomeSize, 0, sme::InterprocessVisibility::kShared};
     auto mem = smf.MapMemory(mmr);
 
     ASSERT_THROW((void)sme::Construct<Foo>(mem, alignof(Foo) + 1), std::logic_error);
@@ -399,7 +399,7 @@ TEST(SharedMemoryTest, TestGetSharedObjectForInvalidLocation)
     auto smf = CreateTestSharedMemoryFile(GetUniqueName(), kSomeSize);
     SharedMemoryFileDeleter smfd{smf};
 
-    sme::MemoryMapRequest mmr{kSomeSize, 0, sme::MemoryMap::ShareType::kShared};
+    sme::MemoryMapRequest mmr{kSomeSize, 0, sme::InterprocessVisibility::kShared};
     auto mem = smf.MapMemory(mmr);
 
     ASSERT_THROW((void)sme::GetObject<Foo>(mem, alignof(Foo) + 1), std::logic_error);

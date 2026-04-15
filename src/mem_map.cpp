@@ -15,13 +15,13 @@ namespace {
 auto MapIntoMemory(int file_desc,
                    size_t size,
                    off_t offset,
-                   MemoryMap::ShareType share_type) -> void*
+                   InterprocessVisibility share_type) -> void*
 {
     int flags{0};
 
     if (file_desc == -1)
         flags |= MAP_ANONYMOUS;
-    flags |= (share_type == MemoryMap::ShareType::kShared ? MAP_SHARED : MAP_PRIVATE);
+    flags |= (share_type == InterprocessVisibility::kShared ? MAP_SHARED : MAP_PRIVATE);
 
     auto* addr = mmap(nullptr, size, PROT_READ | PROT_WRITE, flags, file_desc, offset);
     if (addr == MAP_FAILED)
@@ -32,7 +32,10 @@ auto MapIntoMemory(int file_desc,
 
 }  // namespace
 
-MemoryMap::MemoryMap(int file_desc, size_t size, off_t offset, ShareType share_type)
+MemoryMap::MemoryMap(int file_desc,
+                     size_t size,
+                     off_t offset,
+                     InterprocessVisibility share_type)
     : addr_{MapIntoMemory(file_desc, size, offset, share_type)}, size_{size},
       share_type_{share_type}
 {
@@ -73,7 +76,7 @@ void MemoryMap::Move(MemoryMap& other) noexcept
 
     other.addr_ = nullptr;
     other.size_ = 0;
-    other.share_type_ = ShareType::kPrivate;
+    other.share_type_ = InterprocessVisibility::kPrivate;
 }
 
 auto MemoryMap::isValid() const noexcept -> bool
@@ -107,7 +110,7 @@ auto MemoryMap::GetSize() const noexcept -> size_t
 }
 
 auto MemoryMap::IsShared() const noexcept -> bool {
-    return share_type_ == ShareType::kShared;
+    return share_type_ == InterprocessVisibility::kShared;
 }
 
 void MemoryMap::Unmap()
@@ -121,7 +124,7 @@ void MemoryMap::Unmap()
 
     addr_ = nullptr;
     size_ = 0;
-    share_type_ = ShareType::kPrivate;
+    share_type_ = InterprocessVisibility::kPrivate;
 }
 
 }  // namespace sme

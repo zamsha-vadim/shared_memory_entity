@@ -1,6 +1,9 @@
 #ifndef SME_SHM_H
 #define SME_SHM_H
 
+#include <fcntl.h>
+#include <sys/stat.h>
+
 #include <filesystem>
 #include <memory>
 
@@ -14,18 +17,18 @@ struct SME_EXPORT MemoryMapRequest final {
 
     size_t size{kAllSize};
     off_t offset{0};
-    MemoryMap::ShareType share_type{MemoryMap::ShareType::kPrivate};
+    InterprocessVisibility share_type{InterprocessVisibility::kPrivate};
 };
 
 constexpr MemoryMapRequest kAllMemoryMapRequestAsShared = {
     .size = MemoryMapRequest::kAllSize,
     .offset = 0,
-    .share_type = MemoryMap::ShareType::kShared};
+    .share_type = InterprocessVisibility::kShared};
 
 constexpr MemoryMapRequest kAllMemoryMapRequestAsPrivate = {
     .size = MemoryMapRequest::kAllSize,
     .offset = 0,
-    .share_type = MemoryMap::ShareType::kPrivate};
+    .share_type = InterprocessVisibility::kPrivate};
 
 class SME_EXPORT SharedMemoryFile final {
    public:
@@ -35,7 +38,7 @@ class SME_EXPORT SharedMemoryFile final {
    public:
     SharedMemoryFile(std::filesystem::path path,
                      Flags flags,
-                     Mode mode = 0,
+                     Mode mode = S_IRUSR | S_IWUSR,
                      size_t size = {});
 
     SharedMemoryFile();
@@ -63,7 +66,8 @@ class SME_EXPORT SharedMemoryFile final {
         const MemoryMapRequest& req = kAllMemoryMapRequestAsPrivate) const -> MemoryMap;
     [[nodiscard]] static auto MapAnonymousMemory(
         size_t size,
-        MemoryMap::ShareType share_type = MemoryMap::ShareType::kPrivate) -> MemoryMap;
+        InterprocessVisibility share_type = InterprocessVisibility::kPrivate)
+        -> MemoryMap;
 
    private:
     class Impl;

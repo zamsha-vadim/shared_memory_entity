@@ -178,6 +178,8 @@ target_link_libraries(mem_domain_manip
 ### LIBRARY: sme 
 
 set(sme_public_headers
+    ${INCLUDE_DIR}/ipvt.h
+
     ${INCLUDE_DIR}/mutex.h
     ${INCLUDE_DIR}/cond_var.h
 

@@ -24,11 +24,44 @@ void ValidateMemorySpaceCapacity(const MemorySpace& mem_space)
                                     std::to_string(mem_space.GetCapacity()));
 }
 
+auto ConstructMemoryDomainSegment(void* mem, MemoryDomainSegment::Size mem_size)
+    -> Pointer<MemoryDomainSegment>
+{
+    assert(mem != nullptr);
+    if (mem == nullptr)
+        throw std::invalid_argument("Segment memory location is null");
+
+    return {new (mem) MemoryDomainSegment{mem_size}};
+}
+
+void DeleteMemoryDomainSegment(Pointer<MemoryDomainSegment>& segment) noexcept
+{
+    if (segment == nullptr)
+        return;
+
+    segment->~MemoryDomainSegment();
+    segment.Reset();
+}
+
 }  // namespace
 
 MemoryDomain::MemoryDomain(MemorySpace& mem_space, Synchronizer::Type sync_type)
     : mem_space_{(ValidateMemorySpaceCapacity(mem_space), &mem_space)}, sync_{sync_type}
 {
+}
+
+MemoryDomain::MemoryDomain(MemorySpace& mem_space,
+                           size_t domain_size,
+                           Synchronizer::Type sync_type)
+    : MemoryDomain(mem_space, sync_type)
+{
+    auto ptr = Allocate(domain_size);
+    if (ptr == nullptr)
+        throw std::runtime_error("No free space");
+
+    DisableAllocationExtensible();
+
+    Deallocate(ptr);
 }
 
 MemoryDomain::~MemoryDomain()
@@ -39,9 +72,6 @@ MemoryDomain::~MemoryDomain()
 auto MemoryDomain::Allocate(size_t data_size) -> Pointer<void>
 {
     const std::lock_guard sync_guard{sync_};
-
-    if (!alloc_extensible_)
-        return {};
 
     if (data_size == 0)
         throw std::invalid_argument("Allocation size must be greater 0");
@@ -92,7 +122,7 @@ auto MemoryDomain::GetAddressState(const Pointer<void>& ptr) const noexcept
                 return AddressState::kOther;
 
             default:
-                continue;
+                break;
         }
     }
 
@@ -102,6 +132,9 @@ auto MemoryDomain::GetAddressState(const Pointer<void>& ptr) const noexcept
 void MemoryDomain::DisableAllocationExtensible() noexcept
 {
     const std::lock_guard sync_guard{sync_};
+
+    if (!alloc_extensible_)
+        return;
 
     ShrinkSegments();
 
@@ -122,6 +155,9 @@ auto MemoryDomain::AllocateBlock(Size data_size) -> Pointer<MemoryDomainUseBlock
     auto block = free_block_pool_.AllocateUseBlock(data_size);
     if (block != nullptr)
         return block;
+
+    if (!alloc_extensible_)
+        return {};
 
     if (!AddFreeMemory(data_size))
         return {};
@@ -168,14 +204,14 @@ auto MemoryDomain::AllocateSegment(size_t data_size) -> Pointer<MemoryDomainSegm
     if (mem == nullptr)
         return {};
 
-    return AllocateMemoryDomainSegment(mem, mem_size);
+    return ConstructMemoryDomainSegment(mem, mem_size);
 }
 
 void MemoryDomain::DeallocateSegment(Pointer<MemoryDomainSegment>& segment) noexcept
 {
     Pointer<void> mem = segment;
 
-    DeallocateMemoryDomainSegment(segment);
+    DeleteMemoryDomainSegment(segment);
     mem_space_->Deallocate(mem);
 }
 
@@ -245,12 +281,33 @@ void MemoryDomain::ReleaseAllSegments() noexcept
     }
 }
 
+auto MemoryDomain::GetAllSegmentInfo() const -> std::deque<SegmentInfo> {
+    std::deque<SegmentInfo> seg_infos;
+
+    for (Pointer<MemoryDomainSegment> segment = begin_segment_; segment != nullptr;
+         segment = segment->GetNextSegment()) {
+        SegmentInfo seg_info{};
+        seg_info.address = segment.GetAddress();
+        seg_info.size = segment->GetSegmentSize();
+
+        seg_infos.emplace_back(seg_info);
+    }
+
+    return seg_infos;
+}
+
 auto CreateMemoryDomain(MemorySpace& mem_space, Synchronizer::Type sync_type)
     -> Pointer<MemoryDomain>
 {
     return Create<MemoryDomain>(mem_space, mem_space, sync_type);
 }
 
+auto CreateMemoryDomain(MemorySpace& mem_space,
+                        size_t domain_size,
+                        Synchronizer::Type sync_type) -> Pointer<MemoryDomain>
+{
+    return Create<MemoryDomain>(mem_space, mem_space, domain_size, sync_type);
+}
 
 void DeleteMemoryDomain(Pointer<MemoryDomain>&& mem_domain) noexcept
 {

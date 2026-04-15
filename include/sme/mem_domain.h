@@ -2,6 +2,7 @@
 #define SME_MEM_DOMAIN_H
 
 #include <cstdint>
+#include <deque>
 
 #include "sme/internal/mem_domain_block.h"
 #include "sme/internal/mem_domain_segment.h"
@@ -24,8 +25,17 @@ class SME_EXPORT MemoryDomain {
 
     enum class AddressState : uint8_t { kInvalid, kFree, kUsed, kOther };
 
+    struct SegmentInfo {
+        const void* address{};
+        size_t size{};
+    };
+
    public:
     explicit MemoryDomain(MemorySpace& mem_space,
+                          Synchronizer::Type sync_type = Synchronizer::Type::kNone);
+
+    explicit MemoryDomain(MemorySpace& mem_space,
+                          size_t domain_size,
                           Synchronizer::Type sync_type = Synchronizer::Type::kNone);
 
     MemoryDomain(const MemoryDomain&) = delete;
@@ -41,12 +51,15 @@ class SME_EXPORT MemoryDomain {
     void Deallocate(Pointer<void>& ptr) noexcept;
     void Deallocate(Pointer<void>&& ptr) noexcept;
 
-    template <typename T>
-    [[nodiscard]] auto GetAddressState(const T* ptr) const noexcept -> AddressState;
-    [[nodiscard]] auto GetAddressState(const Pointer<void>& ptr) const noexcept -> AddressState;
-
     [[nodiscard]] auto IsAllocationExtensible() const noexcept -> bool;
     void DisableAllocationExtensible() noexcept;
+
+    template <typename T>
+    [[nodiscard]] auto GetAddressState(const T* ptr) const noexcept -> AddressState;
+    [[nodiscard]] auto GetAddressState(const Pointer<void>& ptr) const noexcept
+        -> AddressState;
+
+    [[nodiscard]] auto GetAllSegmentInfo() const -> std::deque<SegmentInfo>;
 
    private:
     [[nodiscard]] auto AllocateBlock(Size data_size) -> Pointer<MemoryDomainUseBlock>;
@@ -81,6 +94,11 @@ auto MemoryDomain::GetAddressState(const T* ptr) const noexcept
 
 [[nodiscard]] auto SME_EXPORT CreateMemoryDomain(
     MemorySpace& mem_space,
+    Synchronizer::Type sync_type = Synchronizer::Type::kNone) -> Pointer<MemoryDomain>;
+
+[[nodiscard]] auto SME_EXPORT CreateMemoryDomain(
+    MemorySpace& mem_space,
+    size_t domain_size,
     Synchronizer::Type sync_type = Synchronizer::Type::kNone) -> Pointer<MemoryDomain>;
 
 void SME_EXPORT DeleteMemoryDomain(Pointer<MemoryDomain>&) noexcept;

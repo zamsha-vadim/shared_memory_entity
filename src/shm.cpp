@@ -54,7 +54,7 @@ class SharedMemoryFile::Impl {
     void SetSize(size_t size);
 
     auto MapMemory(const MemoryMapRequest& req) const -> MemoryMap;
-    static auto MapAnonymousMemory(size_t size, MemoryMap::ShareType share_type)
+    static auto MapAnonymousMemory(size_t size, InterprocessVisibility share_type)
         -> MemoryMap;
 
    private:
@@ -155,7 +155,7 @@ auto SharedMemoryFile::Impl::MapMemory(const MemoryMapRequest& req) const -> Mem
 }
 
 auto SharedMemoryFile::Impl::MapAnonymousMemory(size_t size,
-                                                MemoryMap::ShareType share_type)
+                                                InterprocessVisibility share_type)
     -> MemoryMap
 {
     return MemoryMap{kInvalidFileDescriptor, size, 0, share_type};
@@ -297,7 +297,7 @@ auto SharedMemoryFile::MapMemory(const MemoryMapRequest& req) const -> MemoryMap
     return pimpl_->MapMemory(req);
 }
 
-auto SharedMemoryFile::MapAnonymousMemory(size_t size, MemoryMap::ShareType share_type)
+auto SharedMemoryFile::MapAnonymousMemory(size_t size, InterprocessVisibility share_type)
     -> MemoryMap
 {
     return Impl::MapAnonymousMemory(size, share_type);

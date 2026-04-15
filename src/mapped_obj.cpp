@@ -6,18 +6,24 @@
 
 namespace sme {
 
-template <>
-auto SME_EXPORT Construct<MemorySpace>(MemoryMap& mem_map, size_t ofs) -> MemorySpace*
+// NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic, cppcoreguidelines)
+
+auto SME_EXPORT ConstructMemorySpace(MemoryMap& mem_map,
+                                     size_t ofs,
+                                     Synchronizer::Type sync_type) -> MemorySpace*
 {
+    if ((ofs % alignof(MemorySpace)) != 0)
+        throw std::logic_error("Offset must conform sme::MemorySpace class alignment");
+
     auto* addr = EnsureAddress<MemorySpace>(mem_map, ofs);
 
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     char* space_addr = static_cast<char*>(addr) + sizeof(MemorySpace);
     auto space_size = mem_map.GetSize() - ofs - sizeof(MemorySpace);
 
-    // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
-    return new (addr) MemorySpace{space_addr, space_size, Synchronizer::Type::kShared};
+    return new (addr) MemorySpace{space_addr, space_size, sync_type};
 }
+
+// NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic, cppcoreguidelines)
 
 // class MemoryUnmapper
 

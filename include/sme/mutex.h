@@ -6,13 +6,12 @@
 #include <cstdint>
 #include <atomic>
 
+#include "sme/ipvt.h"
 #include "sme/sme_export.h"
 
 namespace sme {
 
 class ConditionVariable;
-
-enum class InterprocessVisibility : uint8_t { kPrivate, kShared };
 
 class SME_EXPORT Mutex {
     friend class ConditionVariable;

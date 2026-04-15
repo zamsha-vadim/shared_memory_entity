@@ -10,8 +10,9 @@
 #include "sme/mem_space.h"
 #include "sme/sme_export.h"
 
-// NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast, cppcoreguidelines-pro-bounds-pointer-arithmetic,
-// cppcoreguidelines-pro-type-const-cast, cppcoreguidelines-owning-memory)
+// NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast,
+// cppcoreguidelines-pro-bounds-pointer-arithmetic, cppcoreguidelines-pro-type-const-cast,
+// cppcoreguidelines-owning-memory)
 
 namespace sme {
 
@@ -39,14 +40,18 @@ auto SME_EXPORT EnsureAddress(const MemoryMap& mem_map, size_t ofs) -> const voi
 template <typename T, typename... Arg>
 [[nodiscard]] auto SME_EXPORT Construct(MemoryMap& mem_map, size_t ofs, Arg&&... args) -> T*
 {
+    if ((ofs % alignof(T)) != 0)
+        throw std::logic_error("Offset must conform type alignment");
+
     auto* addr = EnsureAddress<T>(mem_map, ofs);
 
     return new (addr) T{std::forward<Arg>(args)...};
 }
 
-template <>
-[[nodiscard]] auto SME_EXPORT Construct<MemorySpace>(MemoryMap& mem_map, size_t ofs)
-    -> MemorySpace*;
+[[nodiscard]] auto SME_EXPORT ConstructMemorySpace(
+    MemoryMap& mem_map,
+    size_t ofs = 0,
+    Synchronizer::Type sync_type = Synchronizer::Type::kShared) -> MemorySpace*;
 
 template <typename T>
 [[nodiscard]] auto SME_EXPORT GetObject(MemoryMap& mem_map, size_t ofs) -> T&
