@@ -53,6 +53,9 @@ template <typename T, typename... Arg>
     size_t ofs = 0,
     Synchronizer::Type sync_type = Synchronizer::Type::kShared) -> MemorySpace*;
 
+[[nodiscard]] auto SME_EXPORT GetMemorySpace(MemoryMap& mem_map, size_t ofs = 0)
+    -> MemorySpace&;
+
 template <typename T>
 [[nodiscard]] auto SME_EXPORT GetObject(MemoryMap& mem_map, size_t ofs) -> T&
 {

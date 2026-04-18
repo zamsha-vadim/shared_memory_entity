@@ -4,7 +4,9 @@
 #include <array>
 #include <cstdlib>
 #include <iostream>
+#include <mutex>
 
+#include <sme/futex.h>
 #include <sme/mapped_obj.h>
 #include <sme/mdm/unique_ptr.h>
 #include <sme/mem_space.h>
@@ -65,10 +67,17 @@ template <typename ValueT>
 auto Send(ReferenceLayout& ref_layout, sme::mdm::UniquePtr<SimpleObject<ValueT>>& obj)
     -> bool
 {
-    std::lock_guard<sme::Mutex> mutex_lock{ref_layout.mutex};
+    std::cout << "Begin sending" << std::flush;
 
-    //    if (ref_layout.simple_object == nullptr)
-    //        return false;
+    std::unique_lock<sme::Mutex> mutex_lock{ref_layout.mutex};
+
+    std::cout << "..." << std::flush;
+
+    /*
+    if (ref_layout.simple_object != nullptr) {
+        return false;
+    }
+    */
 
     ref_layout.simple_object_type =
         sme::mdm::MakeStringUnique(*ref_layout.simple_object_domain, typeid(*obj).name());
@@ -76,50 +85,82 @@ auto Send(ReferenceLayout& ref_layout, sme::mdm::UniquePtr<SimpleObject<ValueT>>
     sme::Pointer<void> ptr = obj.release();
     ref_layout.simple_object = ptr;
 
-    ref_layout.cond_var.NotifyOne();
+    ref_layout.result_flag = 1;
+
+    mutex_lock.unlock();
+    std::cout << "notifying..." << std::flush;
+
+    sme::FutexWake(ref_layout.result_flag);
+
+    std::cout << "Done" << std::endl;
 
     return true;
 }
 
-void WaitProcessed(ReferenceLayout& ref_layout) {
-    std::unique_lock<sme::Mutex> mutex_lock{ref_layout.mutex};
+void WaitProcessed(ReferenceLayout& ref_layout)
+{
+    std::cout << "Wait for message processed... " << std::flush;
 
-    while (ref_layout.simple_object != nullptr) {
-        if (!ref_layout.cond_var.WaitFor(mutex_lock, std::chrono::seconds(60))) {
+    while (ref_layout.result_flag != 0) {
+        if (sme::FutexWait(ref_layout.result_flag, 1, std::chrono::seconds(6)) !=
+            sme::FutexResult::kCompleted) {
+            std::cout << "Failed, no readers" << std::endl;
             return;
         }
     }
+
+    std::cout << "Successful" << std::endl;
 }
 
 int main()
 {
-    const char* shm_name = "/sme_demo_mem";
-    sme::SharedMemoryFile smf{shm_name, O_CREAT | O_RDWR};
-    smf.SetSize(kSomeSpaceSize);
+    try {
+        const char* shm_name = "/sme_demo_mem";
+        sme::SharedMemoryFile smf{shm_name, O_CREAT | O_RDWR};
 
-    sme::MemoryMap mem_map = smf.MapMemory(sme::kAllMemoryMapRequestAsShared);
-    sme::MemorySpace* mem_space = sme::ConstructMemorySpace(mem_map);
+        auto initialized = (smf.GetSize() != 0);
+        if (!initialized) {
+            smf.SetSize(kSomeSpaceSize);
+        }
 
-    ReferenceLayout* ref_layout = sme::msp::CreateRoot<ReferenceLayout>(*mem_space);
+        sme::MemoryMap mem_map = smf.MapMemory(sme::kAllMemoryMapRequestAsShared);
 
-    sme::Pointer<sme::MemoryDomain> simple_obj_domain =
-        sme::CreateMemoryDomain(*mem_space, mem_space->GetCapacity() / 2);
-    ref_layout->simple_object_domain = simple_obj_domain;
+        sme::MemorySpace* mem_space{};
+        ReferenceLayout* ref_layout{};
+        sme::Pointer<sme::MemoryDomain> simple_obj_domain;
 
-/*
-    sme::Pointer<sme::MemoryDomain> composite_obj_domain =
-        sme::CreateMemoryDomain(*mem_space, mem_space->GetCapacity() / 2 - 1000);
-    ref_layout->composite_object_domain = composite_obj_domain;
-*/
+        if (initialized) {
+            mem_space = &sme::GetMemorySpace(mem_map);
+            ref_layout = &sme::msp::GetRoot<ReferenceLayout>(*mem_space);
 
-    auto td_obj = CreateTimeDuration(123, *simple_obj_domain);
-    Print(*td_obj);
+            initialized = (ref_layout->check_id1 == ReferenceLayout::kCheckValidId &&
+                           ref_layout->check_id2 == ~ReferenceLayout::kCheckValidId);
 
-    Send(*ref_layout, td_obj);
-    WaitProcessed(*ref_layout);
+            if (initialized)
+                simple_obj_domain = ref_layout->simple_object_domain;
+        }
 
-    //    auto month_obj = CreateMonth("may", *simple_obj_domain);
-    //    Print(*month_obj);
+        if (!initialized) {
+            mem_space = sme::ConstructMemorySpace(mem_map);
+            ref_layout = sme::msp::CreateRoot<ReferenceLayout>(*mem_space);
 
-    return EXIT_SUCCESS;
+            simple_obj_domain =
+                sme::CreateMemoryDomain(*mem_space, mem_space->GetCapacity() / 2);
+
+            ref_layout->simple_object_domain = simple_obj_domain;
+        }
+
+
+        auto td_obj = CreateTimeDuration(123, *simple_obj_domain);
+        Print(*td_obj);
+
+        Send(*ref_layout, td_obj);
+        WaitProcessed(*ref_layout);
+
+        return EXIT_SUCCESS;
+
+    } catch (const std::exception& ex) {
+        std::cerr << "*** Error: " << ex.what() << std::endl;
+        return EXIT_FAILURE;
+    }
 }

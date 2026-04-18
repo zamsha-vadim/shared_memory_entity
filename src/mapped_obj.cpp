@@ -6,14 +6,23 @@
 
 namespace sme {
 
+namespace {
+
+void CheckMemorySpaceOffsetAligned(size_t ofs)
+{
+    if ((ofs % alignof(MemorySpace)) != 0)
+        throw std::logic_error("Offset must conform sme::MemorySpace class alignment");
+}
+
+}  // namespace
+
 // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic, cppcoreguidelines)
 
 auto SME_EXPORT ConstructMemorySpace(MemoryMap& mem_map,
                                      size_t ofs,
                                      Synchronizer::Type sync_type) -> MemorySpace*
 {
-    if ((ofs % alignof(MemorySpace)) != 0)
-        throw std::logic_error("Offset must conform sme::MemorySpace class alignment");
+    CheckMemorySpaceOffsetAligned(ofs);
 
     auto* addr = EnsureAddress<MemorySpace>(mem_map, ofs);
 
@@ -21,6 +30,11 @@ auto SME_EXPORT ConstructMemorySpace(MemoryMap& mem_map,
     auto space_size = mem_map.GetSize() - ofs - sizeof(MemorySpace);
 
     return new (addr) MemorySpace{space_addr, space_size, sync_type};
+}
+
+auto SME_EXPORT GetMemorySpace(MemoryMap& mem_map, size_t ofs) -> MemorySpace&
+{
+    return GetObject<MemorySpace>(mem_map, ofs);
 }
 
 // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic, cppcoreguidelines)

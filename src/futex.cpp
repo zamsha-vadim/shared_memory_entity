@@ -1,4 +1,4 @@
-#include "sme/internal/futex.h"
+#include "sme/futex.h"
 
 #include <linux/futex.h>
 #include <sys/syscall.h>
@@ -61,13 +61,13 @@ auto ConvertTimeSpan(const std::chrono::milliseconds& ms_timeout) noexcept
 
 }  // namespace
 
-auto FutexWait(std::atomic<uint32_t>* addr,
+auto FutexWait(std::atomic<uint32_t>& addr,
                uint32_t check_value,
                const std::chrono::milliseconds& ms_timeout) -> FutexResult
 {
     auto [timeout, time_limited] = ConvertTimeSpan(ms_timeout);
 
-    auto res = FutexWait(reinterpret_cast<uint32_t*>(addr), check_value,
+    auto res = FutexWait(reinterpret_cast<uint32_t*>(&addr), check_value,
                          time_limited ? &timeout : nullptr);
     if (res == 0)
         return FutexResult::kCompleted;
@@ -80,9 +80,9 @@ auto FutexWait(std::atomic<uint32_t>* addr,
         throw std::system_error(errno, std::generic_category(), "Futex wait error");
 }
 
-auto SME_EXPORT FutexWake(std::atomic<uint32_t>* addr, uint32_t waiter_number) -> uint32_t
+auto SME_EXPORT FutexWake(std::atomic<uint32_t>& addr, uint32_t waiter_number) -> uint32_t
 {
-    auto res = FutexWake(reinterpret_cast<uint32_t*>(addr), waiter_number);
+    auto res = FutexWake(reinterpret_cast<uint32_t*>(&addr), waiter_number);
     if (res == -1)
         throw std::system_error(errno, std::generic_category(), "Futex wake error");
 

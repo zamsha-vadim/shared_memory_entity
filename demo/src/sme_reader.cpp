@@ -4,7 +4,9 @@
 #include <cassert>
 #include <cstdlib>
 #include <iostream>
+#include <mutex>
 
+#include <sme/futex.h>
 #include <sme/mapped_obj.h>
 #include <sme/mdm/unique_ptr.h>
 #include <sme/mem_space.h>
@@ -26,13 +28,17 @@ int main()
 
     std::unique_lock<sme::Mutex> mutex_lock{ref_layout.mutex};
 
-    assert(ref_layout.check_id1 == kCheckValidId);
-    assert(ref_layout.check_id2 == ~kCheckValidId);
+    assert(ref_layout.check_id1 == ReferenceLayout::kCheckValidId);
+    assert(ref_layout.check_id2 == ~ReferenceLayout::kCheckValidId);
 
     while (ref_layout.simple_object == nullptr) {
-        if (!ref_layout.cond_var.WaitFor(mutex_lock, std::chrono::seconds(60))) {
+        mutex_lock.unlock();
+
+        if (sme::FutexWait(ref_layout.result_flag, 0, std::chrono::seconds(60)) ==
+            sme::FutexResult::kTimeout)
             return EXIT_FAILURE;
-        }
+
+        mutex_lock.lock();
     }
 
     assert(ref_layout.simple_object != nullptr);
@@ -51,7 +57,11 @@ int main()
         ref_layout.simple_object = nullptr;
         ref_layout.simple_object_type.release();
 
-        ref_layout.cond_var.NotifyOne();
+        ref_layout.result_flag = 0;
+
+        mutex_lock.unlock();
+
+        sme::FutexWake(ref_layout.result_flag);
     }
 
     return EXIT_SUCCESS;

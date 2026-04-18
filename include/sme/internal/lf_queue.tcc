@@ -4,7 +4,7 @@
 #include <cassert>
 #include <limits>
 
-#include "sme/internal/futex.h"
+#include "sme/futex.h"
 
 namespace sme {
 
@@ -203,7 +203,7 @@ auto LockFreeQueue<ItemT>::WaitForItemReading(
     wait_count_.fetch_add(1, std::memory_order_release);
 
     try {
-        auto res = FutexWait(&act_state_, kUnmarkedState, timeout);
+        auto res = FutexWait(act_state_, kUnmarkedState, timeout);
 
         wait_count_.fetch_sub(1, std::memory_order_release);
 
@@ -227,7 +227,7 @@ void LockFreeQueue<ItemT>::NotifyReaders() noexcept
     try {
         constexpr uint32_t kOneItemCount{1};
 
-        FutexWake(&act_state_, kOneItemCount);
+        FutexWake(act_state_, kOneItemCount);
 
     } catch (const std::exception& ex) {
         // assert(1 == 0);

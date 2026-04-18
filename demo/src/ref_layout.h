@@ -1,20 +1,23 @@
 #ifndef REF_LAYOUT_H
 #define REF_LAYOUT_H
 
-#include <sme/cond_var.h>
+#include <atomic>
+
 #include <sme/mem_domain.h>
 #include <sme/mem_ptr.h>
 #include <sme/mutex.h>
 
 #include "simple_obj.h"
 
-constexpr uint64_t kCheckValidId{15042026UL};
 
 struct ReferenceLayout {
+    static constexpr uint64_t kCheckValidId{15042026UL};
     uint64_t check_id1{kCheckValidId};
 
     sme::Mutex mutex{sme::InterprocessVisibility::kShared};
-    sme::ConditionVariable cond_var{sme::InterprocessVisibility::kShared};
+    std::atomic<uint32_t> result_flag;
+
+    //    sme::ConditionVariable cond_var{sme::InterprocessVisibility::kShared};
 
     sme::Pointer<sme::MemoryDomain> simple_object_domain;
     sme::Pointer<void*> simple_object;

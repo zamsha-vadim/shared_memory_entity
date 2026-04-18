@@ -9,7 +9,7 @@
 
 namespace sme {
 
-class Synchronizer {
+class SME_EXPORT Synchronizer {
    public:
     enum class Type : uint8_t { kNone, kPrivate, kShared };
 

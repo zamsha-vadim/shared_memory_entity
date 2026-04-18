@@ -180,6 +180,7 @@ target_link_libraries(mem_domain_manip
 set(sme_public_headers
     ${INCLUDE_DIR}/ipvt.h
 
+    ${INCLUDE_DIR}/futex.h
     ${INCLUDE_DIR}/mutex.h
     ${INCLUDE_DIR}/cond_var.h
 
@@ -228,8 +229,6 @@ set(sme_public_headers
 )
 
 set(sme_private_headers
-    ${INCLUDE_DIR}/internal/futex.h
-
     ${INCLUDE_DIR}/internal/string_hash.h
 
     ${INCLUDE_DIR}/internal/ref_count.h
