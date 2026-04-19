@@ -20,7 +20,7 @@
 int main()
 {
     try {
-        const char* shm_name = "/sme_demo_mem";
+        const char* shm_name = "/sme_obj_mem";
         sme::SharedMemoryFile smf{shm_name, O_RDWR};
 
         sme::MemoryMap mem_map = smf.MapMemory(sme::kAllMemoryMapRequestForShared);
@@ -45,13 +45,14 @@ int main()
 
         assert(rlay.object != nullptr);
 
-        std::cout << *(rlay.object_type) << std::endl;
+        std::cout << "Object type: " << *(rlay.object_type) << std::endl;
 
         const auto& type_id = *(rlay.object_type);
 
         if (type_id == typeid(IntObject).name()) {
             sme::Pointer<IntObject> obj =
                 std::launder(reinterpret_cast<IntObject*>(rlay.object.GetAddress()));
+
             Print(*obj);
 
             sme::Delete(*(rlay.object_domain), obj);

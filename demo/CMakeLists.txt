@@ -24,20 +24,59 @@ find_package(Sme REQUIRED)
 
 add_compile_options(-pipe -Wall -Wextra)
 
-add_executable(sme_writer
-    src/sme_writer.cpp
+### obj_writer
+
+add_executable(obj_writer
+    src/obj_writer.cpp
 )
 
-target_link_libraries(sme_writer
+target_link_libraries(obj_writer
     Threads::Threads
     Sme::sme
 )
 
-add_executable(sme_reader
-    src/sme_reader.cpp
+### obj_reader
+
+add_executable(obj_reader
+    src/obj_reader.cpp
 )
 
-target_link_libraries(sme_reader
+target_link_libraries(obj_reader
     Threads::Threads
     Sme::sme
 )
+
+### entity
+
+add_library(entity OBJECT
+    src/entity.h
+    src/entity.cpp
+)
+
+target_link_libraries(entity
+    PUBLIC
+        Sme::sme
+)
+
+### channel_writer
+
+add_executable(channel_writer
+    src/channel_writer.cpp
+)
+
+target_link_libraries(channel_writer
+    Threads::Threads
+    entity
+)
+
+### channel_reader
+
+add_executable(channel_reader
+    src/channel_reader.cpp
+)
+
+target_link_libraries(channel_reader
+    Threads::Threads
+    entity
+)
+

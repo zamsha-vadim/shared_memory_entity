@@ -3,3 +3,6 @@ User space shared memory entities: memory area manager, interprocess exchange ch
 library(STL) containers.
 
 The documentation and demo are in progress...
+
+For using examples see 'demo' directory.
+

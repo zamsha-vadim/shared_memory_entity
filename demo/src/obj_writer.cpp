@@ -16,8 +16,6 @@
 #include "ref_layout.h"
 #include "simple_obj.h"
 
-constexpr size_t kSomeSpaceSize{1024UL * 128};
-std::array<char, kSomeSpaceSize> some_memory{};
 
 /* NEEDED: USE after
 std::cout << mem_space->GetCapacity() << std::endl;
@@ -93,7 +91,9 @@ void WaitProcessed(ReferenceLayout& rlay)
 int main()
 {
     try {
-        const char* shm_name = "/sme_demo_mem";
+        const char* shm_name = "/sme_obj_mem";
+        constexpr size_t kSomeSpaceSize{1024UL * 128};
+
         sme::SharedMemoryFile smf{shm_name, O_CREAT | O_RDWR};
 
         auto initialized = (smf.GetSize() != 0);

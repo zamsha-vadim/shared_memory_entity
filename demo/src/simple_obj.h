@@ -1,5 +1,5 @@
-#ifndef SIMPLE_OBJ_H
-#define SIMPLE_OBJ_H
+#ifndef SME_DEMO_SIMPLE_OBJ_H
+#define SME_DEMO_SIMPLE_OBJ_H
 
 #include <algorithm>
 #include <iostream>
@@ -136,4 +136,4 @@ void Print(const SimpleObject<T>& obj)
     std::cout << std::endl;
 }
 
-#endif  // SIMPLE_OBJ_H
+#endif  // SME_DEMO_SIMPLE_OBJ_H
