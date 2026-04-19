@@ -95,14 +95,7 @@ add_library(mem_basis INTERFACE
 target_include_directories(mem_basis 
     INTERFACE
         $<BUILD_INTERFACE:${BASE_INCLUDE_DIR}>
-
-#        $<INSTALL_INTERFACE:include>
 )
-
-#set_target_properties(mem_basis
-#    PROPERTIES 
-#        PUBLIC_HEADER "${mem_basis_headers}"
-#)
 
 target_compile_options(mem_basis
     INTERFACE
@@ -131,7 +124,6 @@ generate_export_header(mem_space_manip
 
 set_target_properties(mem_space_manip
     PROPERTIES 
-#        PRIVATE_HEADER "${mem_space_manip_headers}"
         POSITION_INDEPENDENT_CODE TRUE
 )
 
@@ -161,7 +153,6 @@ add_library(mem_domain_manip OBJECT
 
 set_target_properties(mem_domain_manip
     PROPERTIES 
-#        PRIVATE_HEADER "${mem_domain_manip_headers}"
         POSITION_INDEPENDENT_CODE TRUE
 )
 
@@ -264,12 +255,6 @@ add_library(sme SHARED
     src/msg_channel.cpp
 )
 
-#set_target_properties(sme
-#    PROPERTIES 
-#        PUBLIC_HEADER "${sme_public_headers}"
-#        PRIVATE_HEADER "${sme_private_headers}"
-#)
-
 target_compile_options(sme
     PRIVATE
         -fno-omit-frame-pointer
@@ -295,12 +280,6 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL GNU OR CMAKE_CXX_COMPILER_ID STREQUAL Clang)
        -latomic
     )   
 endif()
-
-#if (CMAKE_CXX_COMPILER_ID STREQUAL Clang)
-#    target_link_libraries(sme
-#        -stdlib=libc++ 
-#    )   
-#endif()
 
 # INSTALLATION
 
@@ -402,7 +381,6 @@ if (GTest_FOUND)
         test/cond_var_test.cpp
 
         test/queue_test.cpp
-#        test/sync_queue_test.cpp
         test/lf_queue_test.cpp
 
         test/mem_space_test.cpp

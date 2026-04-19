@@ -4,9 +4,6 @@ project(sme_demo
     LANGUAGES CXX
 )
 
-#set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} "/home/vadim/Projects/shared_memory_entity/build/install/usr/local")
-#set(Sme_DIR /home/vadim/Projects/shared_memory_entity/build/share/cmake)
-
 if(NOT Sme_DIR)
     if(EXISTS ../build)
         set(Sme_DIR ../build/share/cmake)
