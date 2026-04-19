@@ -20,12 +20,12 @@ struct SME_EXPORT MemoryMapRequest final {
     InterprocessVisibility share_type{InterprocessVisibility::kPrivate};
 };
 
-constexpr MemoryMapRequest kAllMemoryMapRequestAsShared = {
+constexpr MemoryMapRequest kAllMemoryMapRequestForShared = {
     .size = MemoryMapRequest::kAllSize,
     .offset = 0,
     .share_type = InterprocessVisibility::kShared};
 
-constexpr MemoryMapRequest kAllMemoryMapRequestAsPrivate = {
+constexpr MemoryMapRequest kAllMemoryMapRequestForPrivate = {
     .size = MemoryMapRequest::kAllSize,
     .offset = 0,
     .share_type = InterprocessVisibility::kPrivate};
@@ -63,7 +63,7 @@ class SME_EXPORT SharedMemoryFile final {
     static void UnlinkIfExists(const std::filesystem::path& path);
 
     [[nodiscard]] auto MapMemory(
-        const MemoryMapRequest& req = kAllMemoryMapRequestAsPrivate) const -> MemoryMap;
+        const MemoryMapRequest& req = kAllMemoryMapRequestForPrivate) const -> MemoryMap;
     [[nodiscard]] static auto MapAnonymousMemory(
         size_t size,
         InterprocessVisibility share_type = InterprocessVisibility::kPrivate)

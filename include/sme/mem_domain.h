@@ -61,6 +61,8 @@ class SME_EXPORT MemoryDomain {
 
     [[nodiscard]] auto GetAllSegmentInfo() const -> std::deque<SegmentInfo>;
 
+    static auto IsValidObjectId(const MemoryDomain& obj) noexcept -> bool;
+
    private:
     [[nodiscard]] auto AllocateBlock(Size data_size) -> Pointer<MemoryDomainUseBlock>;
     auto AddFreeMemory(Size data_size) -> bool;
@@ -75,6 +77,8 @@ class SME_EXPORT MemoryDomain {
     void ReleaseAllSegments() noexcept;
 
    private:
+    const uint64_t kTypeCheckValue;
+
     Pointer<MemorySpace> mem_space_;
     mutable Synchronizer sync_;
 

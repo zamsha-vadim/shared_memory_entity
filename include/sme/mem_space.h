@@ -54,6 +54,8 @@ class SME_EXPORT MemorySpace final {
     [[nodiscard]] auto begin() const noexcept -> Iterator;
     [[nodiscard]] auto end() const noexcept -> Iterator;
 
+    static auto IsValidObjectId(const MemorySpace& obj) noexcept -> bool;
+
    public:
     struct AllocationInfo {
         void* block{nullptr};
@@ -114,6 +116,8 @@ class SME_EXPORT MemorySpace final {
                     const MemorySpaceBlock& block2) noexcept -> bool;
 
    private:
+    const uint64_t kTypeCheckValue;
+
     mutable Synchronizer sync_;
     mutable MemorySpaceManipulator mem_manip_;
     Pointer<Block> curr_block_;

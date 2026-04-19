@@ -20,7 +20,7 @@ TEST(MessageChannelTest, TestCreateChannel)
 {
     auto smf = CreateTestSharedMemoryFile(GetUniqueName(), kSomeSize);
     SharedMemoryFileDeleter smf_del{smf};
-    auto mem_map = smf.MapMemory(sme::kAllMemoryMapRequestAsShared);
+    auto mem_map = smf.MapMemory(sme::kAllMemoryMapRequestForShared);
 
     ASSERT_NO_THROW(
         sme::MessageChannel(std::move(mem_map), sme::MessageChannel::kCreate));
@@ -32,11 +32,11 @@ TEST(MessageChannelTest, TestChannelForValidOpen)
     SharedMemoryFileDeleter smf_del{smf};
 
     {
-        auto mem_map1 = smf.MapMemory(sme::kAllMemoryMapRequestAsShared);
+        auto mem_map1 = smf.MapMemory(sme::kAllMemoryMapRequestForShared);
         sme::MessageChannel channel1(std::move(mem_map1), sme::MessageChannel::kCreate);
     }
 
-    auto mem_map2 = smf.MapMemory(sme::kAllMemoryMapRequestAsShared);
+    auto mem_map2 = smf.MapMemory(sme::kAllMemoryMapRequestForShared);
     ASSERT_NO_THROW(sme::MessageChannel(std::move(mem_map2), sme::MessageChannel::kOpen));
 }
 
@@ -45,7 +45,7 @@ TEST(MessageChannelTest, TestChannelForInvalidOpen)
     auto smf = CreateTestSharedMemoryFile(GetUniqueName(), kSomeSize);
     SharedMemoryFileDeleter smf_del{smf};
 
-    auto mem_map = smf.MapMemory(sme::kAllMemoryMapRequestAsShared);
+    auto mem_map = smf.MapMemory(sme::kAllMemoryMapRequestForShared);
     ASSERT_ANY_THROW(sme::MessageChannel(std::move(mem_map), sme::MessageChannel::kOpen));
 }
 
@@ -53,7 +53,7 @@ TEST(MessageChannelTest, TestCreateMessage)
 {
     auto smf = CreateTestSharedMemoryFile(GetUniqueName(), kSomeSize);
     SharedMemoryFileDeleter smf_del{smf};
-    auto mem_map = smf.MapMemory(sme::kAllMemoryMapRequestAsShared);
+    auto mem_map = smf.MapMemory(sme::kAllMemoryMapRequestForShared);
 
     sme::MessageChannel channel{std::move(mem_map), sme::MessageChannel::kCreate};
     sme::MessageWriter& writer = channel.GetWriter();
@@ -69,7 +69,7 @@ TEST(MessageChannelTest, TestCommitMessage)
 {
     auto smf = CreateTestSharedMemoryFile(GetUniqueName(), kSomeSize);
     SharedMemoryFileDeleter smf_del{smf};
-    auto mem_map = smf.MapMemory(sme::kAllMemoryMapRequestAsShared);
+    auto mem_map = smf.MapMemory(sme::kAllMemoryMapRequestForShared);
 
     sme::MessageChannel channel{std::move(mem_map), sme::MessageChannel::kCreate};
     sme::MessageWriter& writer = channel.GetWriter();
@@ -96,7 +96,7 @@ TEST(MessageChannelTest, TestRollbackMessage)
 {
     auto smf = CreateTestSharedMemoryFile(GetUniqueName(), kSomeSize);
     SharedMemoryFileDeleter smf_del{smf};
-    auto mem_map = smf.MapMemory(sme::kAllMemoryMapRequestAsShared);
+    auto mem_map = smf.MapMemory(sme::kAllMemoryMapRequestForShared);
 
     sme::MessageChannel channel{std::move(mem_map), sme::MessageChannel::kCreate};
     sme::MessageWriter& writer = channel.GetWriter();
@@ -114,7 +114,7 @@ TEST(MessageChannelTest, TestCanWriteState)
 {
     auto smf = CreateTestSharedMemoryFile(GetUniqueName(), kSomeSize);
     SharedMemoryFileDeleter smf_del{smf};
-    auto mem_map = smf.MapMemory(sme::kAllMemoryMapRequestAsShared);
+    auto mem_map = smf.MapMemory(sme::kAllMemoryMapRequestForShared);
 
     sme::MessageChannel channel{std::move(mem_map), sme::MessageChannel::kCreate};
     sme::MessageWriter& writer = channel.GetWriter();
@@ -151,7 +151,7 @@ TEST(MessageChannelTest, TestWriteSomeMessages)
 {
     auto smf = CreateTestSharedMemoryFile(GetUniqueName(), kSomeSize);
     SharedMemoryFileDeleter smf_del{smf};
-    auto mem_map = smf.MapMemory(sme::kAllMemoryMapRequestAsShared);
+    auto mem_map = smf.MapMemory(sme::kAllMemoryMapRequestForShared);
 
     sme::MessageChannel channel{std::move(mem_map), sme::MessageChannel::kCreate};
     sme::MessageWriter& writer = channel.GetWriter();
@@ -194,7 +194,7 @@ TEST(MessageChannelTest, TestReadForEmpty)
 {
     auto smf = CreateTestSharedMemoryFile(GetUniqueName(), kSomeSize);
     SharedMemoryFileDeleter smf_del{smf};
-    auto mem_map = smf.MapMemory(sme::kAllMemoryMapRequestAsShared);
+    auto mem_map = smf.MapMemory(sme::kAllMemoryMapRequestForShared);
 
     sme::MessageChannel channel{std::move(mem_map), sme::MessageChannel::kCreate};
     sme::MessageReader& reader = channel.GetReader();
@@ -206,7 +206,7 @@ TEST(MessageChannelTest, TestReadMessage)
 {
     auto smf = CreateTestSharedMemoryFile(GetUniqueName(), kSomeSize);
     SharedMemoryFileDeleter smf_del{smf};
-    auto mem_map = smf.MapMemory(sme::kAllMemoryMapRequestAsShared);
+    auto mem_map = smf.MapMemory(sme::kAllMemoryMapRequestForShared);
 
     sme::MessageChannel channel{std::move(mem_map), sme::MessageChannel::kCreate};
     sme::MessageWriter& writer = channel.GetWriter();
@@ -242,7 +242,7 @@ TEST(MessageChannelTest, TestWriteAndReadSomeMessagesForPrivateMemory)
 {
     auto smf = CreateTestSharedMemoryFile(GetUniqueName(), kSomeSize);
     SharedMemoryFileDeleter smf_del{smf};
-    auto mem_map = smf.MapMemory(sme::kAllMemoryMapRequestAsPrivate);
+    auto mem_map = smf.MapMemory(sme::kAllMemoryMapRequestForPrivate);
 
     sme::MessageChannel channel{std::move(mem_map), sme::MessageChannel::kCreate};
     sme::MessageWriter& writer = channel.GetWriter();
@@ -294,8 +294,8 @@ TEST(MessageChannelTest, TestWriteAndReadSomeMessagesForSharedMemory)
 {
     auto smf = CreateTestSharedMemoryFile(GetUniqueName(), kSomeSize);
     SharedMemoryFileDeleter smf_del{smf};
-    auto mem_map1 = smf.MapMemory(sme::kAllMemoryMapRequestAsShared);
-    auto mem_map2 = smf.MapMemory(sme::kAllMemoryMapRequestAsShared);
+    auto mem_map1 = smf.MapMemory(sme::kAllMemoryMapRequestForShared);
+    auto mem_map2 = smf.MapMemory(sme::kAllMemoryMapRequestForShared);
 
     sme::MessageChannel in_channel{std::move(mem_map1), sme::MessageChannel::kCreate};
 

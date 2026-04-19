@@ -42,67 +42,45 @@ auto CreateTimeDuration(int value, sme::MemoryDomain& mem_domain)
 {
     static const std::array<const char*, 4> measures = {"msec", "sec", "min", "hour"};
 
-    auto iv = sme::MakeUnique<IntObject>(mem_domain, "time duration", value, measures,
-                                         mem_domain);
+    auto iv = sme::make_unique<IntObject>(mem_domain, "time duration", value, measures,
+                                          mem_domain);
     iv->SetMeasure(measures[1]);
 
     return iv;
 }
 
-auto CreateMonth(const char* value, sme::MemoryDomain& mem_domain)
-    -> sme::mdm::UniquePtr<StringObject>
-{
-    static const std::array<const char*, 3> dayAmount = {"30", "31", "28"};
-
-    sme::mdm::string sval{value, sme::mdm::ItemAllocator<sme::mdm::string>(mem_domain)};
-
-    auto sv =
-        sme::MakeUnique<StringObject>(mem_domain, "month", sval, dayAmount, mem_domain);
-    sv->SetMeasure(dayAmount[0]);
-
-    return sv;
-}
-
 template <typename ValueT>
-auto Send(ReferenceLayout& ref_layout, sme::mdm::UniquePtr<SimpleObject<ValueT>>& obj)
-    -> bool
+auto Send(ReferenceLayout& rlay, sme::mdm::UniquePtr<SimpleObject<ValueT>>& obj) -> bool
 {
-    std::cout << "Begin sending" << std::flush;
+    std::cout << "Sending..." << std::flush;
 
-    std::unique_lock<sme::Mutex> mutex_lock{ref_layout.mutex};
+    std::unique_lock<sme::Mutex> mutex_lock{rlay.mutex};
 
-    std::cout << "..." << std::flush;
-
-    /*
-    if (ref_layout.simple_object != nullptr) {
-        return false;
-    }
-    */
-
-    ref_layout.simple_object_type =
-        sme::mdm::MakeStringUnique(*ref_layout.simple_object_domain, typeid(*obj).name());
+    rlay.object_type =
+        sme::mdm::MakeStringUnique(*rlay.object_domain, typeid(*obj).name());
 
     sme::Pointer<void> ptr = obj.release();
-    ref_layout.simple_object = ptr;
+    rlay.object = ptr;
 
-    ref_layout.result_flag = 1;
+    rlay.result_flag = 1;
 
     mutex_lock.unlock();
-    std::cout << "notifying..." << std::flush;
+    std::cout << "Done" << std::endl;
+    std::cout << "Notifying readers for readiness..." << std::flush;
 
-    sme::FutexWake(ref_layout.result_flag);
+    sme::FutexWake(rlay.result_flag);
 
     std::cout << "Done" << std::endl;
 
     return true;
 }
 
-void WaitProcessed(ReferenceLayout& ref_layout)
+void WaitProcessed(ReferenceLayout& rlay)
 {
     std::cout << "Wait for message processed... " << std::flush;
 
-    while (ref_layout.result_flag != 0) {
-        if (sme::FutexWait(ref_layout.result_flag, 1, std::chrono::seconds(6)) !=
+    while (rlay.result_flag != 0) {
+        if (sme::FutexWait(rlay.result_flag, 1, std::chrono::seconds(6)) !=
             sme::FutexResult::kCompleted) {
             std::cout << "Failed, no readers" << std::endl;
             return;
@@ -123,39 +101,38 @@ int main()
             smf.SetSize(kSomeSpaceSize);
         }
 
-        sme::MemoryMap mem_map = smf.MapMemory(sme::kAllMemoryMapRequestAsShared);
+        sme::MemoryMap mem_map = smf.MapMemory(sme::kAllMemoryMapRequestForShared);
 
         sme::MemorySpace* mem_space{};
-        ReferenceLayout* ref_layout{};
-        sme::Pointer<sme::MemoryDomain> simple_obj_domain;
+        ReferenceLayout* rlay{};
+        sme::Pointer<sme::MemoryDomain> obj_domain;
 
         if (initialized) {
             mem_space = &sme::GetMemorySpace(mem_map);
-            ref_layout = &sme::msp::GetRoot<ReferenceLayout>(*mem_space);
+            rlay = &sme::msp::GetRoot<ReferenceLayout>(*mem_space);
 
-            initialized = (ref_layout->check_id1 == ReferenceLayout::kCheckValidId &&
-                           ref_layout->check_id2 == ~ReferenceLayout::kCheckValidId);
+            initialized = (rlay->check_id1 == ReferenceLayout::kCheckValidId &&
+                           rlay->check_id2 == ~ReferenceLayout::kCheckValidId);
 
             if (initialized)
-                simple_obj_domain = ref_layout->simple_object_domain;
+                obj_domain = rlay->object_domain;
         }
 
         if (!initialized) {
             mem_space = sme::ConstructMemorySpace(mem_map);
-            ref_layout = sme::msp::CreateRoot<ReferenceLayout>(*mem_space);
+            rlay = sme::msp::CreateRoot<ReferenceLayout>(*mem_space);
 
-            simple_obj_domain =
+            obj_domain =
                 sme::CreateMemoryDomain(*mem_space, mem_space->GetCapacity() / 2);
 
-            ref_layout->simple_object_domain = simple_obj_domain;
+            rlay->object_domain = obj_domain;
         }
 
-
-        auto td_obj = CreateTimeDuration(123, *simple_obj_domain);
+        auto td_obj = CreateTimeDuration(123, *obj_domain);
         Print(*td_obj);
 
-        Send(*ref_layout, td_obj);
-        WaitProcessed(*ref_layout);
+        Send(*rlay, td_obj);
+        WaitProcessed(*rlay);
 
         return EXIT_SUCCESS;
 

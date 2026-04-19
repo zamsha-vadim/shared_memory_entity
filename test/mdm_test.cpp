@@ -123,8 +123,8 @@ auto Check(
     auto smf = CreateTestSharedMemoryFile(GetUniqueName(), kSharedMemorySize);
     SharedMemoryFileDeleter smfd{smf};
 
-    auto shm1 = smf.MapMemory(sme::kAllMemoryMapRequestAsShared);
-    auto shm2 = smf.MapMemory(sme::kAllMemoryMapRequestAsShared);
+    auto shm1 = smf.MapMemory(sme::kAllMemoryMapRequestForShared);
+    auto shm2 = smf.MapMemory(sme::kAllMemoryMapRequestForShared);
 
     /*
     std::cout << "Memory1: " << shm1.GetAddress() << "-"

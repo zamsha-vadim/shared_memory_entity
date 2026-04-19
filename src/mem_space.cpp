@@ -48,6 +48,8 @@ auto FindAllocatedBlock(MemorySpaceManipulator& mem_manip, const Pointer<void>& 
     return block;
 }
 
+constexpr uint64_t kMemorySpaceCheckTypeId{0x7D857EF281B01};
+
 const MemorySpaceBlockMatcher g_free_block_matcher{&IsSuitableForAllocation};
 
 }  // namespace
@@ -55,8 +57,14 @@ const MemorySpaceBlockMatcher g_free_block_matcher{&IsSuitableForAllocation};
 MemorySpace::MemorySpace(const Pointer<void>& mem,
                          size_t size,
                          Synchronizer::Type sync_type)
-    : sync_{sync_type}, mem_manip_{mem, size}, curr_block_{&mem_manip_.GetFirstBlock()}
+    : kTypeCheckValue{kMemorySpaceCheckTypeId}, sync_{sync_type}, mem_manip_{mem, size},
+      curr_block_{&mem_manip_.GetFirstBlock()}
 {
+}
+
+auto MemorySpace::IsValidObjectId(const MemorySpace& obj) noexcept -> bool
+{
+    return obj.kTypeCheckValue == kMemorySpaceCheckTypeId;
 }
 
 auto MemorySpace::IsValid() const noexcept -> bool

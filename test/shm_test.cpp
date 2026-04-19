@@ -31,7 +31,7 @@ TEST(SharedMemoryFileTest, TestValidConstructForEmptySize)
     EXPECT_EQ(smf.GetPath(), name);
     EXPECT_EQ(smf.GetSize(), 0);
 
-    EXPECT_ANY_THROW((void)smf.MapMemory(sme::kAllMemoryMapRequestAsShared));
+    EXPECT_ANY_THROW((void)smf.MapMemory(sme::kAllMemoryMapRequestForShared));
 }
 
 TEST(SharedMemoryFileTest, TestValidConstructForInitialSize)
@@ -46,7 +46,7 @@ TEST(SharedMemoryFileTest, TestValidConstructForInitialSize)
     EXPECT_EQ(smf.GetPath(), name);
     EXPECT_EQ(smf.GetSize(), kSomeSize);
 
-    EXPECT_TRUE(smf.MapMemory(sme::kAllMemoryMapRequestAsShared) != nullptr);
+    EXPECT_TRUE(smf.MapMemory(sme::kAllMemoryMapRequestForShared) != nullptr);
 }
 
 TEST(SharedMemoryFileTest, TestConstructForInvalidName)
@@ -70,8 +70,8 @@ TEST(SharedMemoryFileTest, TestCopyConstructor)
     EXPECT_EQ(src_smf.GetSize(), dest_smf.GetSize());
     EXPECT_EQ(src_smf.IsValid(), dest_smf.IsValid());
 
-    EXPECT_TRUE(src_smf.MapMemory(sme::kAllMemoryMapRequestAsShared) != nullptr);
-    EXPECT_TRUE(dest_smf.MapMemory(sme::kAllMemoryMapRequestAsShared) != nullptr);
+    EXPECT_TRUE(src_smf.MapMemory(sme::kAllMemoryMapRequestForShared) != nullptr);
+    EXPECT_TRUE(dest_smf.MapMemory(sme::kAllMemoryMapRequestForShared) != nullptr);
 }
 
 TEST(SharedMemoryFileTest, TestMoveConstructor)
@@ -93,8 +93,8 @@ TEST(SharedMemoryFileTest, TestMoveConstructor)
     EXPECT_FALSE(src_smf.IsValid());
     EXPECT_TRUE(dest_smf.IsValid());
 
-    EXPECT_ANY_THROW((void)src_smf.MapMemory(sme::kAllMemoryMapRequestAsShared));
-    EXPECT_TRUE(dest_smf.MapMemory(sme::kAllMemoryMapRequestAsShared) != nullptr);
+    EXPECT_ANY_THROW((void)src_smf.MapMemory(sme::kAllMemoryMapRequestForShared));
+    EXPECT_TRUE(dest_smf.MapMemory(sme::kAllMemoryMapRequestForShared) != nullptr);
 }
 
 TEST(SharedMemoryFileTest, TestCopyOperator)
@@ -110,8 +110,8 @@ TEST(SharedMemoryFileTest, TestCopyOperator)
     EXPECT_EQ(src_smf.GetSize(), dest_smf.GetSize());
     EXPECT_EQ(src_smf.IsValid(), dest_smf.IsValid());
 
-    EXPECT_TRUE(src_smf.MapMemory(sme::kAllMemoryMapRequestAsShared) != nullptr);
-    EXPECT_TRUE(dest_smf.MapMemory(sme::kAllMemoryMapRequestAsShared) != nullptr);
+    EXPECT_TRUE(src_smf.MapMemory(sme::kAllMemoryMapRequestForShared) != nullptr);
+    EXPECT_TRUE(dest_smf.MapMemory(sme::kAllMemoryMapRequestForShared) != nullptr);
 }
 
 TEST(SharedMemoryFileTest, TestMoveOperator)
@@ -135,8 +135,8 @@ TEST(SharedMemoryFileTest, TestMoveOperator)
     EXPECT_FALSE(src_smf.IsValid());
     EXPECT_TRUE(dest_smf.IsValid());
 
-    EXPECT_ANY_THROW((void)src_smf.MapMemory(sme::kAllMemoryMapRequestAsShared));
-    EXPECT_TRUE(dest_smf.MapMemory(sme::kAllMemoryMapRequestAsShared) != nullptr);
+    EXPECT_ANY_THROW((void)src_smf.MapMemory(sme::kAllMemoryMapRequestForShared));
+    EXPECT_TRUE(dest_smf.MapMemory(sme::kAllMemoryMapRequestForShared) != nullptr);
 }
 
 TEST(SharedMemoryFileTest, TestFileSize)
@@ -193,7 +193,7 @@ TEST(SharedMemoryTest, TestValidMemoryMap)
 
     sme::MemoryMap mem_map;
 
-    ASSERT_NO_THROW(mem_map = smf.MapMemory(sme::kAllMemoryMapRequestAsShared));
+    ASSERT_NO_THROW(mem_map = smf.MapMemory(sme::kAllMemoryMapRequestForShared));
 
     EXPECT_EXIT(
         {
@@ -209,7 +209,7 @@ TEST(SharedMemoryTest, TestInvalidMemoryMap)
     SharedMemoryFileDeleter smfd{smf};
 
     smf.Close();
-    ASSERT_ANY_THROW((void)smf.MapMemory(sme::kAllMemoryMapRequestAsShared));
+    ASSERT_ANY_THROW((void)smf.MapMemory(sme::kAllMemoryMapRequestForShared));
 }
 
 TEST(SharedMemoryTest, TestInterprocessCommutication)
@@ -226,7 +226,7 @@ TEST(SharedMemoryTest, TestInterprocessCommutication)
         {
             auto other_smf = OpenTestSharedMemoryFile(name);
 
-            auto other_mem = other_smf.MapMemory(sme::kAllMemoryMapRequestAsShared);
+            auto other_mem = other_smf.MapMemory(sme::kAllMemoryMapRequestForShared);
             FillMappedMemory(other_mem, value, kSomeSize);
 
             exit(EXIT_SUCCESS);
@@ -235,7 +235,7 @@ TEST(SharedMemoryTest, TestInterprocessCommutication)
 
     ASSERT_EXIT(
         {
-            auto mem = smf.MapMemory(sme::kAllMemoryMapRequestAsShared);
+            auto mem = smf.MapMemory(sme::kAllMemoryMapRequestForShared);
             char* area = static_cast<char*>(mem.GetAddress());
 
             for (auto i = 0U; i < kSomeSize; i++)

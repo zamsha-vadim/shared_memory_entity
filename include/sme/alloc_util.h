@@ -127,7 +127,7 @@ template <typename T,
           typename MemoryAreaType,
           typename DeleterType = sme::Deleter<T, MemoryAreaType>,
           typename... Arg>
-[[nodiscard]] auto SME_EXPORT MakeUnique(MemoryAreaType& mem_area, Arg&&... args)
+[[nodiscard]] auto SME_EXPORT make_unique(MemoryAreaType& mem_area, Arg&&... args)
     -> std::unique_ptr<T, DeleterType>
 {
     static_assert(IsAllocator<MemoryAreaType>(),

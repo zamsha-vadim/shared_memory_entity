@@ -34,7 +34,12 @@ auto SME_EXPORT ConstructMemorySpace(MemoryMap& mem_map,
 
 auto SME_EXPORT GetMemorySpace(MemoryMap& mem_map, size_t ofs) -> MemorySpace&
 {
-    return GetObject<MemorySpace>(mem_map, ofs);
+    auto& mem_space = GetObject<MemorySpace>(mem_map, ofs);
+
+    if (!MemorySpace::IsValidObjectId(mem_space))
+        throw std::runtime_error("Invalid memory struct for sme::MemorySpace class");
+
+    return mem_space;    
 }
 
 // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic, cppcoreguidelines)

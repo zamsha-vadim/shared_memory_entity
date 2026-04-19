@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <mutex>
+#include <new>
 
 #include <sme/futex.h>
 #include <sme/mapped_obj.h>
@@ -18,51 +19,57 @@
 
 int main()
 {
-    const char* shm_name = "/sme_demo_mem";
-    sme::SharedMemoryFile smf{shm_name, O_RDWR};
+    try {
+        const char* shm_name = "/sme_demo_mem";
+        sme::SharedMemoryFile smf{shm_name, O_RDWR};
 
-    sme::MemoryMap mem_map = smf.MapMemory(sme::kAllMemoryMapRequestAsShared);
-    sme::MemorySpace& mem_space = sme::GetObject<sme::MemorySpace>(mem_map, 0);
+        sme::MemoryMap mem_map = smf.MapMemory(sme::kAllMemoryMapRequestForShared);
+        sme::MemorySpace& mem_space = sme::GetObject<sme::MemorySpace>(mem_map, 0);
 
-    ReferenceLayout& ref_layout = sme::msp::GetRoot<ReferenceLayout>(mem_space);
+        ReferenceLayout& rlay = sme::msp::GetRoot<ReferenceLayout>(mem_space);
 
-    std::unique_lock<sme::Mutex> mutex_lock{ref_layout.mutex};
+        std::unique_lock<sme::Mutex> mutex_lock{rlay.mutex};
 
-    assert(ref_layout.check_id1 == ReferenceLayout::kCheckValidId);
-    assert(ref_layout.check_id2 == ~ReferenceLayout::kCheckValidId);
+        assert(rlay.check_id1 == ReferenceLayout::kCheckValidId);
+        assert(rlay.check_id2 == ~ReferenceLayout::kCheckValidId);
 
-    while (ref_layout.simple_object == nullptr) {
-        mutex_lock.unlock();
+        while (rlay.object == nullptr) {
+            mutex_lock.unlock();
 
-        if (sme::FutexWait(ref_layout.result_flag, 0, std::chrono::seconds(60)) ==
-            sme::FutexResult::kTimeout)
-            return EXIT_FAILURE;
+            if (sme::FutexWait(rlay.result_flag, 0, std::chrono::seconds(60)) ==
+                sme::FutexResult::kTimeout)
+                return EXIT_FAILURE;
 
-        mutex_lock.lock();
+            mutex_lock.lock();
+        }
+
+        assert(rlay.object != nullptr);
+
+        std::cout << *(rlay.object_type) << std::endl;
+
+        const auto& type_id = *(rlay.object_type);
+
+        if (type_id == typeid(IntObject).name()) {
+            sme::Pointer<IntObject> obj =
+                std::launder(reinterpret_cast<IntObject*>(rlay.object.GetAddress()));
+            Print(*obj);
+
+            sme::Delete(*(rlay.object_domain), obj);
+
+            rlay.object = nullptr;
+            rlay.object_type.release();
+
+            rlay.result_flag = 0;
+
+            mutex_lock.unlock();
+
+            sme::FutexWake(rlay.result_flag);
+        }
+
+        return EXIT_SUCCESS;
+
+    } catch (const std::exception& ex) {
+        std::cerr << "*** Error: " << ex.what() << std::endl;
+        return EXIT_FAILURE;
     }
-
-    assert(ref_layout.simple_object != nullptr);
-
-    std::cout << *(ref_layout.simple_object_type) << std::endl;
-
-    const auto& type_id = *(ref_layout.simple_object_type);
-
-    if (type_id == typeid(IntObject).name()) {
-        sme::Pointer<IntObject> obj =
-            reinterpret_cast<IntObject*>(ref_layout.simple_object.GetAddress());
-        Print(*obj);
-
-        sme::Delete(*(ref_layout.simple_object_domain), obj);
-
-        ref_layout.simple_object = nullptr;
-        ref_layout.simple_object_type.release();
-
-        ref_layout.result_flag = 0;
-
-        mutex_lock.unlock();
-
-        sme::FutexWake(ref_layout.result_flag);
-    }
-
-    return EXIT_SUCCESS;
 }

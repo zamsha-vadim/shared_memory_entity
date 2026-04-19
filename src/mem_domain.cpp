@@ -43,10 +43,13 @@ void DeleteMemoryDomainSegment(Pointer<MemoryDomainSegment>& segment) noexcept
     segment.Reset();
 }
 
+constexpr uint64_t kMemoryDomainCheckTypeId{0x9F6680B020F62};
+
 }  // namespace
 
 MemoryDomain::MemoryDomain(MemorySpace& mem_space, Synchronizer::Type sync_type)
-    : mem_space_{(ValidateMemorySpaceCapacity(mem_space), &mem_space)}, sync_{sync_type}
+    : kTypeCheckValue{kMemoryDomainCheckTypeId},
+      mem_space_{(ValidateMemorySpaceCapacity(mem_space), &mem_space)}, sync_{sync_type}
 {
 }
 
@@ -67,6 +70,11 @@ MemoryDomain::MemoryDomain(MemorySpace& mem_space,
 MemoryDomain::~MemoryDomain()
 {
     ReleaseAllSegments();
+}
+
+auto MemoryDomain::IsValidObjectId(const MemoryDomain& obj) noexcept -> bool
+{
+    return obj.kTypeCheckValue == kMemoryDomainCheckTypeId;
 }
 
 auto MemoryDomain::Allocate(size_t data_size) -> Pointer<void>

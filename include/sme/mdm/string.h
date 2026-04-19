@@ -21,8 +21,8 @@ using u32string = sme::mdm::basic_string<char32_t>;
 template <typename StringT = sme::mdm::string, typename... Arg>
 auto MakeStringUnique(MemoryDomain& mem_domain, Arg&&... arg) -> auto
 {
-    return MakeUnique<StringT>(mem_domain, std::forward<Arg>(arg)...,
-                               ItemAllocator<StringT>(mem_domain));
+    return make_unique<StringT>(mem_domain, std::forward<Arg>(arg)...,
+                                ItemAllocator<StringT>(mem_domain));
 }
 
 }  // namespace mdm

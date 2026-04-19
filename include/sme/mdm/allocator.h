@@ -18,13 +18,6 @@ using MemoryDomainByteAllocator = BasicAllocator<std::byte, MemoryDomain>;
 template <typename ContainerType>
 using ItemAllocator = MemoryDomainAllocator<typename ContainerType::value_type>;
 
-template <typename ContainerType>
-auto SME_EXPORT CreateItemAllocatorFor(MemoryDomain& mem_domain) noexcept
-    -> ItemAllocator<ContainerType>
-{
-    return ItemAllocator<ContainerType>{mem_domain};
-}
-
 }  // namespace mdm
 }  // namespace sme
 
