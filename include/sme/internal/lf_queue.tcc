@@ -77,10 +77,12 @@ auto LockFreeQueue<ItemT>::WriteItem(ItemType* new_item) noexcept -> QueueResult
                 updated_read_link.next = GetObjectOffset(new_item);
 
                 bool completed = read_link_.compare_exchange_strong(
-                    curr_read_link, updated_read_link, std::memory_order_release);
+                    curr_read_link, updated_read_link, /*std::memory_order_release*/ std::memory_order_relaxed);
+
                 if (completed || (ExtractOffset(curr_read_link.basic) !=
-                                  ExtractOffset(updated_read_link.basic)))
+                                  ExtractOffset(updated_read_link.basic))) {
                     break;
+                }
             }
         }
     }
@@ -163,7 +165,7 @@ auto LockFreeQueue<ItemT>::ReadItem() noexcept -> ItemType*
 
         for(;;) {
             completed = read_link_.compare_exchange_strong(curr_link, next_link,
-                                                           std::memory_order_acq_rel);
+                                                           /*std::memory_order_acq_rel*/ std::memory_order_relaxed);
             if (completed) {
                 auto read_counter = ExtractUseCounter(curr_link.basic);
                 curr_item_descriptor.use_counter.fetch_add(read_counter,
@@ -238,8 +240,8 @@ auto LockFreeQueue<ItemT>::IncrementUseCounter(ItemLink& curr_link,
 
     IncreaseUseCounter(holder_link.basic, 1);
 
-    while (!read_link_.compare_exchange_strong(curr_link, holder_link,
-                                               std::memory_order_acq_rel) &&
+    while (!read_link_.compare_exchange_weak(curr_link, holder_link,
+                                               /*std::memory_order_acq_rel*/ std::memory_order_relaxed) &&
            curr_link.next != 0) {
         holder_link = curr_link;
         IncreaseUseCounter(holder_link.basic, 1);

@@ -7,7 +7,7 @@ project(sme
     LANGUAGES CXX
 )
 
-if(NOT CMAKE_SYSTEM_PROCESSOR MATCHES "(x86_64|amd64)")
+if(NOT CMAKE_SYSTEM_PROCESSOR MATCHES "(x86_64|aarch64|amd64)")
     message(FATAL_ERROR 
             "The project supports x86_64 and amd64 processors. You have '${CMAKE_SYSTEM_PROCESSOR}' processor")
 endif()
@@ -24,7 +24,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD 17)
 
-if(CMAKE_SYSTEM_PROCESSOR MATCHES "(x86_64|amd64)")
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "(x86_64|aarch64|amd64)")
     check_cxx_compiler_flag("-mcx16" COMPILER_HAS_MCX16)
     if(NOT COMPILER_HAS_MCX16)
         message(FATAL "Compiler doesn't support '-mcx16' option")
