@@ -436,34 +436,8 @@ TEST(LockFreeQueueTest, TestThreadedWritingAndReading)
         }
     } while (rd_res.first == sme::QueueResult::kSuccessful);
 
-    std::cout << "@@@@@ Additional read count: " << add_count << "\n" << std::endl;
+    std::cout << "Additional read count: " << add_count << std::endl;
     // ASSERT_EQ(add_count, 0);
-
-    /*
-    for (auto i = 0U; i < kItemCount; i++) {
-        const Queue<int>::Item& item = data[i];
-
-        //if (item.link.load().next == nullptr) {
-            std::cout << "%%%%%%%%%%%%%%% Value: " << item.value
-                      << ", processed: " << item.link.load().processed
-                      << ", next: " << item.link.load().next << std::endl;
-        //}
-    }
-    std::cout << std::endl;
-    */
-
-    /*
-    for (auto i = 0U; i < res_data.size(); i++) {
-        const Queue<int>::Item& item = *res_data[i];
-
-        //if (item.link.load().next == nullptr) {
-            std::cout << "%%%%%%%%%%%%%%% Value: " << item.value
-                      << ", processed: " << item.link.load().processed
-                      << ", next: " << item.link.load().next << std::endl;
-        //}
-    }
-    std::cout << std::endl;
-    */
 
     EXPECT_TRUE(queue.IsEmpty());
     EXPECT_EQ(queue.GetSize(), 0);
@@ -472,13 +446,6 @@ TEST(LockFreeQueueTest, TestThreadedWritingAndReading)
               [](Item<int>* lhs, Item<int>* rhs) { return lhs->GetValue() < rhs->GetValue(); });
 
     std::cout << std::dec << "RESULT, Read total: " << res_data.size() << std::endl;
-
-    /*
-    for (auto v : res_data) {
-        std::cout << v << " ";
-    }
-    std::cout << std::endl;
-    */
 
     ASSERT_EQ(res_data.size(), kItemCount);
 

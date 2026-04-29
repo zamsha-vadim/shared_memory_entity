@@ -69,20 +69,20 @@ auto LockFreeQueue<ItemT>::WriteItem(ItemType* new_item) noexcept -> QueueResult
     auto curr_read_link = read_link_.load(std::memory_order_acquire);
 
     if (curr_read_link.next == 0) {
-        const auto* basic_item = GetObjectAddress(curr_read_link.basic);
+        for (;;) {
+            const auto* basic_item = GetObjectAddress(curr_read_link.basic);
 
-        if (basic_item == prev_item || prev_item == nullptr) {
-            for (;;) {
+            if (basic_item == prev_item || prev_item == nullptr) {
                 auto updated_read_link = curr_read_link;
                 updated_read_link.next = GetObjectOffset(new_item);
 
-                bool completed = read_link_.compare_exchange_strong(
-                    curr_read_link, updated_read_link, /*std::memory_order_release*/ std::memory_order_relaxed);
-
-                if (completed || (ExtractOffset(curr_read_link.basic) !=
-                                  ExtractOffset(updated_read_link.basic))) {
+                if (read_link_.compare_exchange_strong(curr_read_link, updated_read_link,
+                                                       std::memory_order_acq_rel))
                     break;
-                }
+                if (curr_read_link.next != 0)
+                    break;
+            } else {
+                break;
             }
         }
     }
@@ -165,7 +165,7 @@ auto LockFreeQueue<ItemT>::ReadItem() noexcept -> ItemType*
 
         for(;;) {
             completed = read_link_.compare_exchange_strong(curr_link, next_link,
-                                                           /*std::memory_order_acq_rel*/ std::memory_order_relaxed);
+                                                           std::memory_order_acq_rel);
             if (completed) {
                 auto read_counter = ExtractUseCounter(curr_link.basic);
                 curr_item_descriptor.use_counter.fetch_add(read_counter,

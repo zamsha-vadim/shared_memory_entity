@@ -48,7 +48,6 @@ int main()
             props.push_back(std::move(prop));
         }
 
-
         const auto kTypeId{0x1234};
         msg->SetRootObject(entity, kTypeId);
 

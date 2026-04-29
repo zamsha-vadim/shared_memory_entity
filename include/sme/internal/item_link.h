@@ -14,7 +14,7 @@
 namespace sme {
 
 using ObjectOffset = std::ptrdiff_t;
-using UseCounter = int16_t;
+using UseCounter = uint16_t;
 
 constexpr auto kDWCASAlign{16U};
 

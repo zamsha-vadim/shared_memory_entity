@@ -46,6 +46,7 @@ template <typename T>
 auto ReferenceCounter<T>::Decrement() const noexcept -> ValueType
 {
     auto prev_value = counter_.fetch_sub(1, std::memory_order_release);
+    assert(prev_value > 0);
 
     auto updated_value = prev_value - 1;
     assert(updated_value != std::numeric_limits<ValueType>::max());
