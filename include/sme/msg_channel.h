@@ -62,14 +62,14 @@ class SME_EXPORT __attribute__((aligned(kDWCASAlign))) Message {
     auto RemoveReference() const noexcept -> ReferenceCounterType;
     auto GetReferenceCount() const noexcept -> ReferenceCounterType;
 
-    auto GetItemLink() const noexcept -> const std::atomic<ItemLink>&;
-    auto GetItemLink() noexcept -> std::atomic<ItemLink>&;
+    auto GetItemDescriptor() const noexcept -> const ItemDescriptor&;
+    auto GetItemDescriptor() noexcept -> ItemDescriptor&;
 
    private:
     void ValidateState() const;
 
    private:
-    mutable std::atomic<ItemLink> item_link_;
+    mutable ItemDescriptor item_descriptor_{};
     mutable ReferenceCounter<> ref_counter_;
 
     Pointer<MemoryDomain> mem_domain_;

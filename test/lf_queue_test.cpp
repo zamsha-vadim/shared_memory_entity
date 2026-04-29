@@ -17,12 +17,16 @@ struct alignas(16) Item {
 
     auto AddReference(CounterType count = 1) const noexcept -> CounterType
     {
-        return counter_.Increment(count);
+        auto value = counter_.Increment(count);
+        assert(value != std::numeric_limits<CounterType>::min());
+        return value;
     }
 
     auto RemoveReference() const noexcept -> CounterType
     {
-        return counter_.Decrement();
+        auto value = counter_.Decrement();
+        assert(value != std::numeric_limits<CounterType>::max());
+        return value;
     }
 
     auto GetReferenceCount() const noexcept
@@ -30,13 +34,18 @@ struct alignas(16) Item {
         return counter_.GetValue();
     }
 
-    auto GetItemLink() const noexcept -> std::atomic<sme::ItemLink>& { return link_; }
+    auto GetItemDescriptor() const noexcept -> const sme::ItemDescriptor&
+    {
+        return item_descriptor_;
+    }
+
+    auto GetItemDescriptor() noexcept -> sme::ItemDescriptor& { return item_descriptor_; }
 
     auto GetValue() const noexcept { return value_; }
     auto SetValue(T value) noexcept { value_ = std::move(value); }
 
    private:
-    mutable std::atomic<sme::ItemLink> link_{};
+    mutable sme::ItemDescriptor item_descriptor_{};
     mutable sme::ReferenceCounter<> counter_{1};
 
     T value_{};
@@ -314,10 +323,10 @@ TEST(LockFreeQueueTest, TestThreadedWritingAndReading)
 
     //constexpr size_t kWriterCount{1};
     //constexpr size_t kReaderCount{1};
-    constexpr size_t kWriterCount{4};
-    constexpr size_t kReaderCount{4};
-    //constexpr size_t kWriterCount{10};
-    //constexpr size_t kReaderCount{10};
+    //constexpr size_t kWriterCount{4};
+    //constexpr size_t kReaderCount{4};
+    constexpr size_t kWriterCount{8};
+    constexpr size_t kReaderCount{8};
 
     std::unique_ptr<Item<int>[]> data{new Item<int>[kItemCount]};
 
@@ -400,7 +409,7 @@ TEST(LockFreeQueueTest, TestThreadedWritingAndReading)
         writer.thread.join();
         total_write_count += writer.write_count;
     }
-    std::cout << "Write total: " << total_write_count << std::endl;
+    std::cout << "WRITE total: " << total_write_count << std::endl;
     ASSERT_EQ(total_write_count, kItemCount);
 
     std::deque<Item<int>*> res_data;
@@ -414,7 +423,7 @@ TEST(LockFreeQueueTest, TestThreadedWritingAndReading)
             // std:: cout << reader.buffer[i] << " ";
         }
         // std::cout << std::endl;
-        std::cout << "Thread read total: " << reader.read_count << std::endl;
+        std::cout << "READ total:  " << reader.read_count << std::endl;
     }
 
     size_t add_count{0};
@@ -456,13 +465,13 @@ TEST(LockFreeQueueTest, TestThreadedWritingAndReading)
     std::cout << std::endl;
     */
 
-    EXPECT_EQ(queue.GetSize(), 0);
     EXPECT_TRUE(queue.IsEmpty());
+    EXPECT_EQ(queue.GetSize(), 0);
 
     std::sort(res_data.begin(), res_data.end(),
               [](Item<int>* lhs, Item<int>* rhs) { return lhs->GetValue() < rhs->GetValue(); });
 
-    std::cout << std::dec << "Read total: " << res_data.size() << std::endl;
+    std::cout << std::dec << "RESULT, Read total: " << res_data.size() << std::endl;
 
     /*
     for (auto v : res_data) {
@@ -475,7 +484,7 @@ TEST(LockFreeQueueTest, TestThreadedWritingAndReading)
 
     for (auto i = 0u; i < res_data.size(); i++) {
         ASSERT_EQ(res_data[i]->GetValue(), data[i].GetValue())
-            << "Invalid item at the position " << i;
-        ASSERT_EQ(res_data[i]->GetReferenceCount(), 1);
+            << "Invalid the item at the position " << i;
+        ASSERT_EQ(res_data[i]->GetReferenceCount(), 1) << "Invalid the item reference count at the position " << i;
     }
 }

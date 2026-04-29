@@ -43,7 +43,7 @@ auto LockFreeQueue<ItemT>::WriteItem(ItemType* new_item) noexcept -> QueueResult
     auto new_item_ofp = GetObjectOffset(new_item);
 
     ItemLink link{.basic = new_item_ofp, .next = 0};
-    new_item->GetItemLink().store(link, std::memory_order_relaxed);
+    new_item->GetItemDescriptor().link.store(link, std::memory_order_relaxed);
 
     auto prev_item_ofp = last_item_ofp_.load(std::memory_order_relaxed);
 
@@ -54,12 +54,13 @@ auto LockFreeQueue<ItemT>::WriteItem(ItemType* new_item) noexcept -> QueueResult
     }
 
     ItemType* prev_item = GetObjectAddress(prev_item_ofp);
-
     if (prev_item != nullptr) {
-        auto link = prev_item->GetItemLink().load(std::memory_order_acquire);
+        auto& item_descr = prev_item->GetItemDescriptor();
+
+        auto link = item_descr.link.load(std::memory_order_acquire);
         link.next = new_item_ofp;
 
-        prev_item->GetItemLink().store(link, std::memory_order_release);
+        item_descr.link.store(link, std::memory_order_release);
 
         obj_counter = prev_item->RemoveReference();
         assert(obj_counter > 0);
@@ -71,11 +72,16 @@ auto LockFreeQueue<ItemT>::WriteItem(ItemType* new_item) noexcept -> QueueResult
         const auto* basic_item = GetObjectAddress(curr_read_link.basic);
 
         if (basic_item == prev_item || prev_item == nullptr) {
-            auto updated_read_link = curr_read_link;
-            updated_read_link.next = GetObjectOffset(new_item);
+            for (;;) {
+                auto updated_read_link = curr_read_link;
+                updated_read_link.next = GetObjectOffset(new_item);
 
-            read_link_.compare_exchange_strong(curr_read_link, updated_read_link,
-                                               std::memory_order_release);
+                bool completed = read_link_.compare_exchange_strong(
+                    curr_read_link, updated_read_link, std::memory_order_release);
+                if (completed || (ExtractOffset(curr_read_link.basic) !=
+                                  ExtractOffset(updated_read_link.basic)))
+                    break;
+            }
         }
     }
 
@@ -138,20 +144,48 @@ auto LockFreeQueue<ItemT>::Read(const std::chrono::milliseconds& timeout)
 template <typename ItemT>
 auto LockFreeQueue<ItemT>::ReadItem() noexcept -> ItemType*
 {
+    ItemLink holder_link{};
+    ItemLink next_link{};
+    
     auto curr_link = read_link_.load(std::memory_order_acquire);
-    if (curr_link.next == 0) {
-        return nullptr;
+
+    for (;;) {
+        if (!IncrementUseCounter(curr_link, holder_link))
+            return nullptr;
+
+        curr_link = holder_link;
+
+        auto* curr_item = GetObjectAddress(curr_link.next);
+        auto& curr_item_descriptor = curr_item->GetItemDescriptor();
+        next_link = curr_item_descriptor.link.load(std::memory_order_acquire);
+
+        bool completed{};
+
+        for(;;) {
+            completed = read_link_.compare_exchange_strong(curr_link, next_link,
+                                                           std::memory_order_acq_rel);
+            if (completed) {
+                auto read_counter = ExtractUseCounter(curr_link.basic);
+                curr_item_descriptor.use_counter.fetch_add(read_counter,
+                                                           std::memory_order_relaxed);
+                break;
+            } else {
+                if (ExtractOffset(curr_link.basic) != ExtractOffset(holder_link.basic)) {
+                    auto prev_use_counter = curr_item_descriptor.use_counter.fetch_sub(
+                        1, std::memory_order_relaxed);
+                    if (prev_use_counter == 1)
+                        curr_item->RemoveReference();
+
+                    break;
+                }
+            }
+        }
+
+        if (completed)
+            break;
     }
 
-    ItemLink next_link{};
-
-    do {
-        auto* next_item = GetObjectAddress(curr_link.next);
-        next_link = next_item->GetItemLink().load(std::memory_order_acquire);
-
-    } while (!read_link_.compare_exchange_weak(curr_link, next_link,
-                                               std::memory_order_acq_rel) &&
-             curr_link.next != 0);
+    assert(curr_link.next != 0);
 
     auto* res_item = GetObjectAddress(curr_link.next);
     if (res_item == nullptr)
@@ -159,16 +193,23 @@ auto LockFreeQueue<ItemT>::ReadItem() noexcept -> ItemType*
 
     size_.fetch_sub(1, std::memory_order_relaxed);
 
-    auto item_link = res_item->GetItemLink().load(std::memory_order_acquire);
+    auto& item_descriptor = res_item->GetItemDescriptor();
+    auto item_link = item_descriptor.link.load(std::memory_order_acquire);
 
-    if (next_link.basic == item_link.basic && next_link.next == 0 &&
+    if (/*next_link.basic == item_link.basic &&*/ next_link.next == 0 &&
         item_link.next != 0) {
         read_link_.compare_exchange_strong(next_link, item_link,
                                            std::memory_order_relaxed);
     }
 
-    [[maybe_unused]] auto obj_counter = res_item->RemoveReference();
-    assert(obj_counter > 0);
+    auto prev_use_counter =
+        item_descriptor.use_counter.fetch_sub(1, std::memory_order_relaxed);
+    if (prev_use_counter == 1) {
+        [[maybe_unused]] auto obj_counter = res_item->RemoveReference();
+
+        assert(obj_counter > 0);
+        assert(obj_counter != std::numeric_limits<decltype(obj_counter)>::max());
+    }
 
     auto last_item_ofp = last_item_ofp_.load(std::memory_order_acquire);
     const auto* last_item = GetObjectAddress(last_item_ofp);
@@ -176,12 +217,35 @@ auto LockFreeQueue<ItemT>::ReadItem() noexcept -> ItemType*
     if (res_item == last_item) {
         if (last_item_ofp_.compare_exchange_strong(last_item_ofp, 0,
                                                    std::memory_order_relaxed)) {
-            obj_counter = res_item->RemoveReference();
+            [[maybe_unused]] auto obj_counter = res_item->RemoveReference();
+
             assert(obj_counter >= 1);
+            assert(obj_counter != std::numeric_limits<decltype(obj_counter)>::max());
         }
     }
 
     return res_item;
+}
+
+template <typename ItemT>
+auto LockFreeQueue<ItemT>::IncrementUseCounter(ItemLink& curr_link,
+                                               ItemLink& holder_link) noexcept -> bool
+{
+    if (curr_link.next == 0)
+        return false;
+
+    holder_link = curr_link;
+
+    IncreaseUseCounter(holder_link.basic, 1);
+
+    while (!read_link_.compare_exchange_strong(curr_link, holder_link,
+                                               std::memory_order_acq_rel) &&
+           curr_link.next != 0) {
+        holder_link = curr_link;
+        IncreaseUseCounter(holder_link.basic, 1);
+    }
+
+    return (curr_link.next != 0);
 }
 
 template <typename ItemT>
@@ -279,11 +343,11 @@ void LockFreeQueue<ItemT>::Clear() noexcept
         if (item == nullptr)
             break;
 
-        auto item_link = item->GetItemLink().load(std::memory_order_acquire);
+        auto item_link = item->GetItemDescriptor().link.load(std::memory_order_acquire);
         auto next_item_ofp = item_link.next;
 
         item_link.next = 0;
-        item->GetItemLink().store(item_link, std::memory_order_release);
+        item->GetItemDescriptor().link.store(item_link, std::memory_order_release);
 
         auto obj_counter = item->RemoveReference();
         if (obj_counter > 0 && item_ofp == last_item_ofp)

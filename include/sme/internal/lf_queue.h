@@ -39,9 +39,9 @@ class alignas(kCacheLineSize) LockFreeQueue final {
                   "The item class must have the method \"auto RemoveReference() const "
                   "noexcept -> CounterType\"");
 
-    static_assert(HasItemLink<ItemT>::value,
-                  "The item class must have the method \"auto GetItemLink() const "
-                  "noexcept -> std::atomic<sme::ItemLink>&\"");
+    static_assert(HasItemDescriptor<ItemT>::value,
+                  "The item class must have the method \"auto GetItemDescriptor() "
+                  "noexcept -> sme::ItemDescriptor&\"");
 
 #if defined(__clang__)
     static_assert(std::atomic<ItemLink>::is_always_lock_free,
@@ -81,6 +81,8 @@ class alignas(kCacheLineSize) LockFreeQueue final {
         -> QueueResult;
 
     void ReleaseItem(ItemType*);
+
+    auto IncrementUseCounter(ItemLink& curr_link, ItemLink& holder_link) noexcept -> bool;
 
     void IncrementMessageCountMarker() noexcept;
     void DecrementMessageCountMarker() noexcept;

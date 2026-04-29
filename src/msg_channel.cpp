@@ -157,14 +157,14 @@ auto Message::GetReferenceCount() const noexcept -> ReferenceCounterType
     return ref_counter_.GetValue();
 }
 
-auto Message::GetItemLink() const noexcept -> const std::atomic<ItemLink>&
+auto Message::GetItemDescriptor() const noexcept -> const ItemDescriptor&
 {
-    return item_link_;
+    return item_descriptor_;
 }
 
-auto Message::GetItemLink() noexcept -> std::atomic<ItemLink>&
+auto Message::GetItemDescriptor() noexcept -> ItemDescriptor&
 {
-    return item_link_;
+    return item_descriptor_;
 }
 
 // class MessageDeleter

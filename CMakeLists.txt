@@ -252,6 +252,7 @@ add_library(sme SHARED
     src/shm.cpp
     src/mapped_obj.cpp
 
+    src/item_link.cpp
     src/msg_channel.cpp
 )
 
@@ -379,6 +380,8 @@ if (GTest_FOUND)
 
         test/mutex_test.cpp
         test/cond_var_test.cpp
+
+        test/item_link_test.cpp
 
         test/queue_test.cpp
         test/lf_queue_test.cpp
