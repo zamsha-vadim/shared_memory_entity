@@ -16,25 +16,6 @@
 #include "ref_layout.h"
 #include "simple_obj.h"
 
-
-/* NEEDED: USE after
-std::cout << mem_space->GetCapacity() << std::endl;
-
-for (int i = 0; ; i++) {
-    sme::Pointer<sme::MemoryDomain> domain =
-        sme::CreateMemoryDomain(*mem_space, 1024 * 1);
-
-    std::cout << ((i + 1) * 1024)  << std::endl;
-    for (const auto& seg_info : domain->GetAllSegmentInfo()) {
-        std::cout << "address: " << seg_info.address << " - "
-                  << (const void*)(reinterpret_cast<const char*>(seg_info.address) +
-                                   seg_info.size)
-                  << std::endl;
-        std::cout << "size:    " << seg_info.size << std::endl;
-    }
-}
-*/
-
 auto CreateTimeDuration(int value, sme::MemoryDomain& mem_domain)
     -> sme::mdm::UniquePtr<IntObject>
 {

@@ -206,7 +206,7 @@ allocating memory for C++ objects. It is also used by STL allocators for strings
 
 The typical usage scenario for `sme::MemoryDomain` involves allocating memory and placing a 
 single root object (DTO) within it, which then dynamically distributes memory for its internal 
-structures from this specific `MemoryDomain`. To allocate another root object, its own 
+structures from this specific `sme::MemoryDomain`. To allocate another root object, its own 
 `sme::MemoryDomain` is created. This approach avoids the need for a global memory manager 
 across the entire shared memory, which would require complex defragmentation and 
 cross-process/cross-thread synchronization.
@@ -228,23 +228,61 @@ more larger blocks obtained via `sme::MemorySpace::AllocateAtLeast`/`Allocate`.
     `sme::MemorySpace::AllocateAtLeast` and added to an internal list.
 *   `void Deallocate(Pointer<void>& ptr) noexcept` — Frees memory.
 *   `void DisableAllocationExtensible() noexcept` — Used when the writer finishes allocating 
-    memory in its `MemoryDomain`. This releases unused memory blocks from the free list via 
+    memory in its `sme::MemoryDomain`. This releases unused memory blocks from the free list via 
     `sme::MemorySpace::Deallocate` and shrinks the last utilized block to its minimum size via 
-    `sme::MemorySpace::Resize`. This allows subsequent `MemoryDomain` instances to efficiently 
-    utilize the remaining shared memory. Further allocations in the current `MemoryDomain` are 
+    `sme::MemorySpace::Resize`. This allows subsequent `sme::MemoryDomain` instances to efficiently 
+    utilize the remaining shared memory. Further allocations in the current `sme::MemoryDomain` are 
     still possible using the remaining space in partially occupied blocks.
+
+### Core Memory Space Functions
+
+These are the fundamental functions used to initialize `sme::MemorySpace` and perform subsequent 
+operations.
+
+```cpp
+auto sme::ConstructMemorySpace(
+    MemoryMap& mem_map,
+    size_t ofs = 0,
+    Synchronizer::Type sync_type = Synchronizer::Type::kShared) -> MemorySpace*
+```
+Used after creating and mapping shared memory in one of the initialization processes to 
+construct the `sme::MemorySpace` object.
+
+```cpp
+auto GetMemorySpace(MemoryMap& mem_map, size_t ofs = 0) -> MemorySpace&
+```
+Used after opening and mapping shared memory to gain access to an `sme::MemorySpace` object 
+previously allocated (typically in another process) via `sme::ConstructMemorySpace`.
+
+```cpp
+template <typename T, typename... Arg>
+auto sme::CreateRoot(MemorySpace& mem_space, Arg&&... args) -> T*
+```
+To start using objects in `sme::MemorySpace`, a primary root object of class `<T>` must be 
+created. This object contains links to other objects located in the `sme::MemorySpace`. This 
+method is called after `sme::ConstructMemorySpace`. For example, a class `<T>` object could 
+contain a list of allocated `sme::MemoryDomain` instances.
+
+```cpp
+template <typename T>
+auto sme::GetRoot(MemorySpace& mem_space) -> T&
+```
+Used to obtain a reference to the primary root object of class `<T>`. This method is called 
+after `sme::GetMemorySpace`.
+
+*   `auto sme::CreateMemoryDomain(sme::MemorySpace& mem_space, size_t domain_size, 
+    sme::Synchronizer::Type sync_type) -> Pointer<sme::MemoryDomain>` — Creates an 
+    `sme::MemoryDomain` within an `sme::MemorySpace`.
+*   `void sme::DeleteMemoryDomain(sme::Pointer<sme::MemoryDomain>&) noexcept` — Deletes an 
+    `sme::MemoryDomain` from the `sme::MemorySpace`.
+
+For further details, see `demo/src/obj_writer.cpp` and `demo/src/obj_reader.cpp`.
 
 ### Core Memory Allocation Functions
 
 As previously described, memory can be allocated from either `sme::MemorySpace` or 
 `sme::MemoryDomain`. The following functions are provided for memory allocation and C++ 
 object construction:
-
-*   `auto sme::CreateMemoryDomain(sme::MemorySpace& mem_space, size_t domain_size, 
-    sme::Synchronizer::Type sync_type) -> Pointer<sme::MemoryDomain>` — Creates a 
-    `MemoryDomain` within a `MemorySpace`.
-*   `void sme::DeleteMemoryDomain(sme::Pointer<sme::MemoryDomain>&) noexcept` — Deletes a 
-    `MemoryDomain` from the `MemorySpace`.
 
 ```cpp
 template <typename T, typename MemoryAreaType>
@@ -284,7 +322,7 @@ The `sme/mdm` directory contains adaptations of STL classes and their respective
 
 ```cpp
 template <typename T>
-using MemoryDomainAllocator = BasicAllocator<T, MemoryDomain>;
+using MemoryDomainAllocator = BasicAllocator<T, sme::MemoryDomain>;
 
 template <typename CharT, class Traits = std::char_traits<CharT>>
 using basic_string = std::basic_string<CharT, Traits, MemoryDomainAllocator<CharT>>;
@@ -297,11 +335,69 @@ using list = std::list<T, MemoryDomainAllocator<T>>;
 ```
 ...and other similar containers.
 
-### Usage examples are provided in the `demo` directory:
-*   **The first method** is demonstrated in `demo/src/obj_writer.cpp` and `demo/src/obj_reader.cpp`.
-*   **The second method** is in `demo/src/channel_writer.cpp` and `demo/src/channel_reader.cpp`.
+### Message Queue
 
-For implementation details, you can also refer to the tests in the `tests` directory.
+Often, data exchange requires a message queue that can contain various types of C++ class 
+objects. The `sme::MessageChannel` class was developed for this purpose. For each message of 
+class `sme::Message`, its own `sme::MemoryDomain` is formed, within which an object of an 
+arbitrary C++ class is allocated using functions from the "Core Memory Allocation Functions" 
+section.
+
+The preferred usage pattern is "one producer — many consumers." This is because a message is 
+created for an object with an unknown amount of allocated memory; as described above regarding 
+`sme::MemoryDomain` specifics, it is better not to use multiple `sme::MemoryDomain` instances 
+simultaneously. Once allocation for a specific object is complete, the message should be 
+sent, and you can proceed to create the next one. If the expected memory size for the object is 
+known in advance, several messages can be formed simultaneously (multiple `sme::MemoryDomain` 
+instances), moving to a "many producers — many consumers" scheme.
+
+**Class `sme::MessageChannel`:**
+
+*   `MessageChannel::MessageChannel(MemoryMap mem_map, InitialState init_state)` — Creates a 
+    message queue in shared memory.
+*   `auto MessageChannel::GetWriter() -> sme::MessageWriter&` — Obtains the message writer 
+    object.
+*   `auto MessageChannel::GetReader() -> sme::MessageReader&` — Obtains the message reader 
+    object.
+
+**Class `sme::MessageWriter`:**
+
+*   `auto MessageWriter::CreateMessage() -> sme::IntrusivePtr<sme::Message>` — Creates a 
+    message to be filled with data. If the message does not need to be sent, simply release 
+    ownership in the `IntrusivePtr<Message>`.
+*   `auto MessageWriter::Commit(sme::IntrusivePtr<sme::Message>& msg) -> sme::QueueResult` — 
+    Sends the message. Upon successful queuing, the `msg` object loses ownership of the message.
+
+**Class `sme::MessageReader`:**
+
+*   `auto sme::MessageReader::Read() -> std::pair<QueueResult, IntrusivePtr<Message>>` — 
+    Reads a message without waiting (non-blocking).
+*   `auto sme::MessageReader::Read(const std::chrono::milliseconds& timeout) -> 
+    std::pair<QueueResult, IntrusivePtr<Message>>` — Reads a message, waiting for a timeout.
+*   `auto sme::MessageReader::Wait(const std::chrono::milliseconds& timeout) const -> 
+    QueueResult` — Waits for the queue to be ready for reading.
+
+**Class `sme::Message`:**
+
+*   **Data Filling Methods:**
+    *   `auto sme::Message::GetAllocationDomain() -> sme::MemoryDomain&` — Calling this method 
+        starts the data-filling phase. The object and its internal data are allocated within 
+        the `sme::MemoryDomain`.
+    *   `void SetRootObject(void* obj, size_t type_id)` — After allocating the object `obj`, 
+        it must be set as the root so the reader can identify and access the primary message 
+        object. The `type_id` is used to uniquely identify the C++ class of the root object.
+
+*   **Data Reading Methods:**
+    *   `auto sme::Message::GetRootObjectDefinition() const -> const 
+        MessageRootObjectDefinition&` — Reads information about the root object and its type. 
+        For example, knowing the type, you can use:
+        `sme::Pointer<Entity> entity = msg->GetRootObjectDefinition().object;`
+
+### Usage examples are provided in the `demo` directory:
+*   **The basic methods ** are demonstrated in `demo/src/obj_writer.cpp` and `demo/src/obj_reader.cpp`.
+*   **The message queue ** are demonstrated in `demo/src/channel_writer.cpp` and `demo/src/channel_reader.cpp`.
+
+For implementation details, you can also refer to the sources in `include/sme` and `src` directory and the tests in the `tests` directory.
 
 ---
 *Detailed documentation on usage is being written...*

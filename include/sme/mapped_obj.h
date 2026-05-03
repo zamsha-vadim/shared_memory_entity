@@ -37,6 +37,14 @@ auto SME_EXPORT EnsureAddress(const MemoryMap& mem_map, size_t ofs) -> const voi
     return EnsureAddress<T>(const_cast<MemoryMap&>(mem_map), ofs);
 }
 
+[[nodiscard]] auto SME_EXPORT ConstructMemorySpace(
+    MemoryMap& mem_map,
+    size_t ofs = 0,
+    Synchronizer::Type sync_type = Synchronizer::Type::kShared) -> MemorySpace*;
+
+[[nodiscard]] auto SME_EXPORT GetMemorySpace(MemoryMap& mem_map, size_t ofs = 0)
+    -> MemorySpace&;
+
 template <typename T, typename... Arg>
 [[nodiscard]] auto SME_EXPORT Construct(MemoryMap& mem_map, size_t ofs, Arg&&... args) -> T*
 {
@@ -47,14 +55,6 @@ template <typename T, typename... Arg>
 
     return new (addr) T{std::forward<Arg>(args)...};
 }
-
-[[nodiscard]] auto SME_EXPORT ConstructMemorySpace(
-    MemoryMap& mem_map,
-    size_t ofs = 0,
-    Synchronizer::Type sync_type = Synchronizer::Type::kShared) -> MemorySpace*;
-
-[[nodiscard]] auto SME_EXPORT GetMemorySpace(MemoryMap& mem_map, size_t ofs = 0)
-    -> MemorySpace&;
 
 template <typename T>
 [[nodiscard]] auto SME_EXPORT GetObject(MemoryMap& mem_map, size_t ofs) -> T&
