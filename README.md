@@ -6,7 +6,8 @@ The primary objective of this project is to facilitate high-performance data exc
 applications via **Shared Memory**. This is achieved using standard C++ classes that can
 encapsulate C-strings, STL containers, and other dynamically allocated C++ objects.
 
-NOTE: Only Linux implementation
+* **Operating System**: Linux (Tested on Ubuntu 22.04; support for other distributions is planned).
+* **Compiler**: GCC 11+ or Clang 14+ (C++17 support required).
 
 #### Key Features and Constraints:
 
@@ -283,6 +284,13 @@ For further details, see `demo/src/obj_writer.cpp` and `demo/src/obj_reader.cpp`
 As previously described, memory can be allocated from either `sme::MemorySpace` or 
 `sme::MemoryDomain`. The following functions are provided for memory allocation and C++ 
 object construction:
+
+```cpp
+template <typename T, typename MemoryAreaType, typename... Arg>
+auto Create(MemoryAreaType& mem_area, Arg&&... args) -> T*
+```
+Allocates memory within a `MemoryAreaType` (either `sme::MemorySpace` or `sme::MemoryDomain`) 
+and constructs an object of class `T` using the provided `args` for the constructor call.
 
 ```cpp
 template <typename T, typename MemoryAreaType>
