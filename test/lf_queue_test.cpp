@@ -225,8 +225,6 @@ TEST(LockFreeQueueTest, TestWriteSequentiallySomeItemsAndReadSequentially)
 
 TEST(LockFreeQueueTest, TestDisabled)
 {
-    const auto timeout{std::chrono::milliseconds(200)};
-
     sme::LockFreeQueue<Item<int>> queue;
 
     ASSERT_FALSE(queue.IsDisabled());
@@ -375,7 +373,7 @@ TEST(LockFreeQueueTest, TestThreadedWritingAndReading)
         std::chrono::milliseconds timeout{0};	
 
         while (reader.read_count < reader.buffer_size) {
-            auto [res, item] = queue.Read(/*timeout*/);
+            auto [res, item] = queue.Read(timeout);
             if (item != nullptr) {
                 reader.buffer[reader.read_count] = item;
                 reader.read_count++;

@@ -119,7 +119,7 @@ auto LockFreeQueue<ItemT>::Read(const std::chrono::milliseconds& timeout)
 
     auto curr_timeout{timeout};
 
-    auto begin_time = std::chrono::system_clock::now();
+    auto begin_time = std::chrono::steady_clock::now();
 
     while (!IsDisabled()) {
         auto* item = ReadItem();
@@ -133,7 +133,7 @@ auto LockFreeQueue<ItemT>::Read(const std::chrono::milliseconds& timeout)
         if (wait_res != QueueResult::kSuccessful)
             return {wait_res, nullptr};
 
-        auto elapsed_time = std::chrono::system_clock::now() - begin_time;
+        auto elapsed_time = std::chrono::steady_clock::now() - begin_time;
         if (elapsed_time >= timeout)
             return {QueueResult::kTimeout, nullptr};
         curr_timeout =
