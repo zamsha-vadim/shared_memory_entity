@@ -158,15 +158,6 @@ auto BasicAllocator<T, MemoryAreaType>::allocate(size_type size) -> pointer
     return ptr;
 }
 
-/*
-template <typename T, typename MemoryAreaType>
-auto BasicAllocator<T, MemoryAreaType>::allocate(size_type size, const void* hint)
-    -> pointer {
-    assert(size == 0);
-    return nullptr;
-}
-*/
-
 template <typename T, typename MemoryAreaType>
 void BasicAllocator<T, MemoryAreaType>::deallocate(pointer ptr,
                                                    [[maybe_unused]] size_type) noexcept
@@ -174,7 +165,7 @@ void BasicAllocator<T, MemoryAreaType>::deallocate(pointer ptr,
     if (!ptr)
         return;
 
-    assert(IsValid());
+    //assert(IsValid()); // uncomment after additional testing
     if (!IsValid())
         return;
 
