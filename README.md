@@ -6,8 +6,8 @@ The primary objective of this project is to facilitate high-performance data exc
 applications via **Shared Memory**. This is achieved using standard C++ classes that can
 encapsulate C-strings, STL containers, and other dynamically allocated C++ objects.
 
-* **Operating System**: Linux (Tested on Ubuntu 22.04, Debian 13; support for other distributions is planned).
-* **Compiler**: GCC (11+, 14.2, 16.1) or Clang (14+, 19.1) and C++17 support required.
+* **Operating System**: Linux, tested on Ubuntu (22.04), Debian (12, 13); support for other distributions is planned.
+* **Compiler**: GCC (11+, 12.5, 14.2, 16.1) or Clang (14+, 19.1) and C++17 support required.
 
 #### Key Features and Constraints:
 
