@@ -15,24 +15,24 @@ namespace sme {
 
 namespace {
 
-auto Futex(uint32_t* uaddr,
+auto Futex(FutexValueType* uaddr,
            int futex_op,
-           uint32_t val,
+           FutexValueType val,
            const struct timespec* timeout,
-           uint32_t* uaddr2,
-           uint32_t val3) noexcept -> long
+           FutexValueType* uaddr2,
+           FutexValueType val3) noexcept -> long
 {
     return TEMP_FAILURE_RETRY(
         ::syscall(SYS_futex, uaddr, futex_op, val, timeout, uaddr2, val3));
 }
 
-auto FutexWait(uint32_t* addr, uint32_t check_value, const struct timespec* timeout)
+auto WaitFutex(FutexValueType* addr, FutexValueType check_value, const struct timespec* timeout)
     -> long
 {
     return Futex(addr, FUTEX_WAIT, check_value, timeout, nullptr, 0);
 }
 
-auto FutexWake(uint32_t* addr, uint32_t waiter_number) noexcept -> long
+auto WakeFutex(FutexValueType* addr, FutexValueType waiter_number) noexcept -> long
 {
     return Futex(addr, FUTEX_WAKE, waiter_number, nullptr, nullptr, 0);
 }
@@ -59,34 +59,91 @@ auto ConvertTimeSpan(const std::chrono::milliseconds& ms_timeout) noexcept
     return std::make_pair(timespec{.tv_sec = 0, .tv_nsec = 0}, false);
 }
 
+auto GetAddress(std::atomic<FutexValueType>& addr) noexcept -> FutexValueType*
+{
+    return reinterpret_cast<FutexValueType*>(&addr);
+}
+
 }  // namespace
 
-auto FutexWait(std::atomic<uint32_t>& addr,
-               uint32_t check_value,
-               const std::chrono::milliseconds& ms_timeout) -> FutexResult
+auto WaitFutex(std::atomic<FutexValueType>& addr,
+               FutexValueType check_value,
+               const std::chrono::milliseconds& timeout) -> FutexResult
 {
-    auto [timeout, time_limited] = ConvertTimeSpan(ms_timeout);
+    auto [abs_time, time_limited] = ConvertTimeSpan(timeout);
 
-    auto res = FutexWait(reinterpret_cast<uint32_t*>(&addr), check_value,
-                         time_limited ? &timeout : nullptr);
+    auto res =
+        WaitFutex(GetAddress(addr), check_value, time_limited ? &abs_time : nullptr);
     if (res == 0)
         return FutexResult::kCompleted;
 
-    if (errno == EAGAIN || res == EWOULDBLOCK)
+    switch (errno) {
+    case 0:
         return FutexResult::kCompleted;
-    else if (errno == ETIMEDOUT)
+    case EAGAIN:
+        return FutexResult::kCompleted;
+    case ETIMEDOUT:
         return FutexResult::kTimeout;
-    else
+    default:
         throw std::system_error(errno, std::generic_category(), "Futex wait error");
+    }
 }
 
-auto SME_EXPORT FutexWake(std::atomic<uint32_t>& addr, uint32_t waiter_number) -> uint32_t
+auto WakeFutex(std::atomic<FutexValueType>& addr, FutexValueType waiter_number) -> uint32_t
 {
-    auto res = FutexWake(reinterpret_cast<uint32_t*>(&addr), waiter_number);
+    auto res = WakeFutex(GetAddress(addr), waiter_number);
     if (res == -1)
         throw std::system_error(errno, std::generic_category(), "Futex wake error");
 
     return static_cast<uint32_t>(res);
+}
+
+auto LockPiFutex(std::atomic<FutexValueType>& addr, const std::chrono::milliseconds& timeout)
+    -> PiFutexResult
+{
+    auto [abs_time, time_limited] = ConvertTimeSpan(timeout);
+
+    auto res = Futex(GetAddress(addr), FUTEX_LOCK_PI, 0,
+                     (time_limited ? &abs_time : nullptr), nullptr, 0);
+    if (res == 0)
+        return PiFutexResult::kCompleted;
+
+    switch (errno) {
+    case 0:
+        return PiFutexResult::kCompleted;
+    case EAGAIN:
+        return PiFutexResult::kOwnerDied;
+    case ETIMEDOUT:
+        return PiFutexResult::kTimeout;
+    default:
+        throw std::system_error(errno, std::generic_category(), "PI futex lock error");
+    }
+}
+
+void UnlockPiFutex(std::atomic<FutexValueType>& addr)
+{
+    auto res = Futex(GetAddress(addr), FUTEX_UNLOCK_PI, 0, nullptr, nullptr, 0);
+    if (res != 0)
+        throw std::system_error(errno, std::generic_category(), "PI futex unlock error");
+}
+
+void SetConsistentPiFutex(std::atomic<FutexValueType>& addr) noexcept {
+    auto owner_tid = addr.load(std::memory_order_acquire);
+
+    if (!IsPiFutexOwnerDied(owner_tid))
+        return;
+
+    addr.compare_exchange_strong(owner_tid, 0, std::memory_order_release);
+}
+
+auto IsPiFutexOwnerDied(FutexValueType value) noexcept -> bool
+{
+    return ((value & FUTEX_OWNER_DIED) == FUTEX_OWNER_DIED);
+}
+
+auto HasPiFutexWaiters(FutexValueType value) noexcept -> bool
+{
+    return ((value & FUTEX_WAITERS) == FUTEX_WAITERS);
 }
 
 }  // namespace sme

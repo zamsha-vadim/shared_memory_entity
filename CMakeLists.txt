@@ -172,6 +172,7 @@ set(sme_public_headers
     ${INCLUDE_DIR}/ipvt.h
 
     ${INCLUDE_DIR}/futex.h
+    ${INCLUDE_DIR}/adapt_spin_lock.h
     ${INCLUDE_DIR}/mutex.h
     ${INCLUDE_DIR}/cond_var.h
 
@@ -240,6 +241,7 @@ add_library(sme SHARED
     ${sme_headers}
 
     src/futex.cpp
+    src/adapt_spin_lock.cpp
     src/mutex.cpp
     src/cond_var.cpp
 
@@ -380,6 +382,7 @@ if (GTest_FOUND)
 
         test/mutex_test.cpp
         test/cond_var_test.cpp
+        test/adapt_spin_lock_test.cpp
 
         test/item_link_test.cpp
 

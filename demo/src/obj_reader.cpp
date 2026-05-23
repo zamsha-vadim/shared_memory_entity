@@ -36,7 +36,7 @@ int main()
         while (rlay.object == nullptr) {
             mutex_lock.unlock();
 
-            if (sme::FutexWait(rlay.result_flag, 0, std::chrono::seconds(60)) ==
+            if (sme::WaitFutex(rlay.result_flag, 0, std::chrono::seconds(60)) ==
                 sme::FutexResult::kTimeout)
                 return EXIT_FAILURE;
 
@@ -64,7 +64,7 @@ int main()
 
             mutex_lock.unlock();
 
-            sme::FutexWake(rlay.result_flag);
+            sme::WakeFutex(rlay.result_flag);
         }
 
         return EXIT_SUCCESS;

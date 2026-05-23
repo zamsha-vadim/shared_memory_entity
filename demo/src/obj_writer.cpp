@@ -47,7 +47,7 @@ auto Send(ReferenceLayout& rlay, sme::mdm::UniquePtr<SimpleObject<ValueT>>& obj)
     std::cout << "Done" << std::endl;
     std::cout << "Notifying readers for readiness..." << std::flush;
 
-    sme::FutexWake(rlay.result_flag);
+    sme::WakeFutex(rlay.result_flag);
 
     std::cout << "Done" << std::endl;
 
@@ -59,7 +59,7 @@ void WaitProcessed(ReferenceLayout& rlay)
     std::cout << "Wait for message processed... " << std::flush;
 
     while (rlay.result_flag != 0) {
-        if (sme::FutexWait(rlay.result_flag, 1, std::chrono::seconds(6)) !=
+        if (sme::WaitFutex(rlay.result_flag, 1, std::chrono::seconds(6)) !=
             sme::FutexResult::kCompleted) {
             std::cout << "Failed, no readers" << std::endl;
             return;
