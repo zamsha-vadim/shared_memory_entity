@@ -103,20 +103,25 @@ auto LockPiFutex(std::atomic<FutexValueType>& addr, const std::chrono::milliseco
 {
     auto [abs_time, time_limited] = ConvertTimeSpan(timeout);
 
-    auto res = Futex(GetAddress(addr), FUTEX_LOCK_PI, 0,
-                     (time_limited ? &abs_time : nullptr), nullptr, 0);
-    if (res == 0)
-        return PiFutexResult::kCompleted;
+    for (;;) {
+        auto res = Futex(GetAddress(addr), FUTEX_LOCK_PI, 0,
+                         (time_limited ? &abs_time : nullptr), nullptr, 0);
+        if (res == 0)
+            return PiFutexResult::kCompleted;
 
-    switch (errno) {
-    case 0:
-        return PiFutexResult::kCompleted;
-    case EAGAIN:
-        return PiFutexResult::kOwnerDied;
-    case ETIMEDOUT:
-        return PiFutexResult::kTimeout;
-    default:
-        throw std::system_error(errno, std::generic_category(), "PI futex lock error");
+        switch (errno) {
+            case 0:
+                return PiFutexResult::kCompleted;
+            case EAGAIN:
+                continue;
+            case EOWNERDEAD:
+                return PiFutexResult::kOwnerDied;
+            case ETIMEDOUT:
+                return PiFutexResult::kTimeout;
+            default:
+                throw std::system_error(errno, std::generic_category(),
+                                        "PI futex lock error");
+        }
     }
 }
 
@@ -130,10 +135,13 @@ void UnlockPiFutex(std::atomic<FutexValueType>& addr)
 void SetConsistentPiFutex(std::atomic<FutexValueType>& addr) noexcept {
     auto owner_tid = addr.load(std::memory_order_acquire);
 
-    if (!IsPiFutexOwnerDied(owner_tid))
-        return;
+    while (IsPiFutexOwnerDied(owner_tid)) {
+        auto updated_owner_tid = owner_tid & ~FUTEX_OWNER_DIED;
 
-    addr.compare_exchange_strong(owner_tid, 0, std::memory_order_release);
+        if (addr.compare_exchange_strong(owner_tid, updated_owner_tid,
+                                         std::memory_order_relaxed))
+            break;
+    }
 }
 
 auto IsPiFutexOwnerDied(FutexValueType value) noexcept -> bool

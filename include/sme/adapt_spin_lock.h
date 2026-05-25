@@ -31,8 +31,9 @@ class SME_EXPORT AdaptiveSpinLock {
     unsigned short concur_wait_num_{};
     uint64_t begin_timestamp_{0};
     std::atomic<uint64_t> avg_exec_time_{0};
+    std::atomic<uint64_t> avg_acq_time_{0};
+    std::atomic<uint64_t> lock_count_{0};
     std::atomic<uint32_t> sync_var_{0};
-    //std::atomic<bool> is_locked_{false};
 };
 
 }  // namespace sme

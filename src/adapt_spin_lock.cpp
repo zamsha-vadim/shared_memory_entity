@@ -3,9 +3,14 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#if defined(__x86_64__)
+#include <immintrin.h>
+#endif
+
 #include <cassert>
 #include <ctime>
 #include <thread>
+#include <iostream>
 
 #include "sme/futex.h"
 
@@ -13,51 +18,55 @@ namespace sme {
 
 namespace {
 
-constexpr auto kNanosecondMax{1'000'000'000UL};
-
-auto ToNanoseconds(const timespec& time) noexcept -> uint64_t
+inline auto GetCpuCycles() noexcept -> uint64_t
 {
-    return time.tv_sec * kNanosecondMax + time.tv_nsec;
+#if defined(__x86_64__)
+    return __rdtsc();
+#elif defined(__aarch64__)
+    uint64_t virtual_timer_value;
+    asm volatile(
+        "isb\n\t"
+        "mrs %0, cntvct_el0\n\t"
+        : "=r" (virtual_timer_value)
+        :
+        : "memory"
+    );
+    return virtual_timer_value;
+#endif
 }
 
 auto GetTimestamp() noexcept -> uint64_t
 {
-    struct timespec time {};
-
-    auto res = clock_gettime(CLOCK_THREAD_CPUTIME_ID, &time);
-    if (res == -1)
-        return 0;
-
-    return ToNanoseconds(time);
+    return GetCpuCycles();
 }
 
-auto LockFutex(std::atomic<FutexValueType>& sync_var) -> bool
+void LockFutex(std::atomic<FutexValueType>& sync_var)
 {
+//    std::string s = std::to_string(gettid()) + ": LLLLLLLLLLLLLLLL\n";
+//    std::cout << s << std::flush;
+
     auto res = LockPiFutex(sync_var);
-
-    if (res == PiFutexResult::kOwnerDied) {
+    if (res == PiFutexResult::kOwnerDied)
         SetConsistentPiFutex(sync_var);
-        return false;
-    }
-
-    assert(res == PiFutexResult::kCompleted);
-    return true;
 }
 
 void UnlockFutex(std::atomic<FutexValueType>& sync_var)
 {
-    auto value = sync_var.load(std::memory_order_acquire);
-    if (!HasPiFutexWaiters(value))
-        sync_var.store(0, std::memory_order_release);
-    else
+    FutexValueType curr_tid = gettid();
+
+    if (!sync_var.compare_exchange_strong(curr_tid, 0, std::memory_order_release)) {
+//        std::string s = std::to_string(gettid()) + ": UUUUUUUUUUUUUUUU\n";
+//        std::cout << s << std::flush;
+
         UnlockPiFutex(sync_var);
+    }
 }
 
 void RelaxCpu()
 {
-#if defined(x86_64)
+#if defined(__x86_64__)
     __builtin_ia32_pause();
-#elif defined(aarch64) 
+#elif defined(__aarch64__) 
     asm volatile("yield" ::: "memory");  
 #else
     std::this_thread::yield();
@@ -74,45 +83,77 @@ AdaptiveSpinLock::AdaptiveSpinLock(unsigned short concur_wait_num)
 AdaptiveSpinLock::~AdaptiveSpinLock()
 {
     assert(sync_var_.load() == 0);
+
+    std::cout << "AVG EXEC TIME=" << avg_exec_time_ << ", AVG ACQ TIME=" << avg_acq_time_
+              << ", LOCKS=" << lock_count_ << std::endl;
 }
 
 void AdaptiveSpinLock::lock()
 {
+    if (concur_wait_num_ == 0) {
+        LockFutex(sync_var_);
+        return;
+    }
+    
     auto curr_tid = gettid();
     uint32_t owner_tid{0};
 
+    auto begin_acq_time = GetTimestamp();
+
     if (!sync_var_.compare_exchange_strong(owner_tid, curr_tid,
-                                           std::memory_order_acq_rel)) {
+                                           std::memory_order_relaxed)) {
         auto begin_time = GetTimestamp();
 
-        owner_tid = 0;
-
-        while (!sync_var_.compare_exchange_strong(owner_tid, curr_tid,
-                                                  std::memory_order_relaxed)) {
+        for (;;) {
             const auto elapsed_time = GetTimestamp() - begin_time;
             const auto max_wait_time =
-                avg_exec_time_.load(std::memory_order_acquire) * concur_wait_num_;
+                avg_exec_time_.load(std::memory_order_relaxed) * concur_wait_num_;
 
-            if (elapsed_time >= max_wait_time) {
-                auto locked = LockFutex(sync_var_);
-                if (locked)
-                    break;
+            if (elapsed_time > max_wait_time && max_wait_time != 0) {
+                //std::cout << "LLL E=" << elapsed_time << ", A=" << avg_exec_time_<< std::endl;
 
-                begin_time = GetTimestamp();
+                lock_count_.fetch_add(1, std::memory_order_relaxed);
+
+                LockFutex(sync_var_);
+                break;
             }
 
-            owner_tid = 0;
-
             RelaxCpu();
+
+            owner_tid = sync_var_.load(std::memory_order_acquire);
+            if (owner_tid == 0) {
+                if (sync_var_.compare_exchange_strong(owner_tid, curr_tid,
+                                                      std::memory_order_relaxed)) {
+                    /*
+                    if (elapsed_time > max_wait_time && max_wait_time != 0) {
+                        std::cout << curr_tid << " E=" << elapsed_time
+                                  << ", A=" << avg_exec_time_ << std::endl;
+//                                  abort();
+                    }
+                    */
+
+                    break;
+                }
+            }
         }
     }
+
+    auto curr_acq_time = GetTimestamp() - begin_acq_time;
+    auto last_acq_time = avg_acq_time_.load(std::memory_order_acquire);
+    if (last_acq_time == 0)
+        last_acq_time = curr_acq_time;
+    auto updated_acq_time = (last_acq_time * 15 + curr_acq_time) / 16;
+    avg_acq_time_.store(updated_acq_time, std::memory_order_release);
 
     MarkExecutionTimestamp();
 }
 
 void AdaptiveSpinLock::unlock()
 {
-    UpdateAvarageExecutionTime();
+    if (concur_wait_num_ != 0) 
+        UpdateAvarageExecutionTime();
+    // std::cout << "A: " << avg_exec_time_.load(std::memory_order_acquire) <<
+    // std::endl;
 
     UnlockFutex(sync_var_);
 }
@@ -125,11 +166,16 @@ void AdaptiveSpinLock::MarkExecutionTimestamp() noexcept
 void AdaptiveSpinLock::UpdateAvarageExecutionTime() noexcept
 {
     auto curr_exec_time = GetTimestamp() - begin_timestamp_;
-    auto last_avg_exec_time = avg_exec_time_.load(std::memory_order_acquire);
 
-    auto updated_avg_exec_time = (last_avg_exec_time * 15 + curr_exec_time) / 16;
+    //std::cout << "C: " << curr_exec_time << std::endl;
 
-    avg_exec_time_.store(updated_avg_exec_time, std::memory_order_release);
+    auto last_avg_time = avg_exec_time_.load(std::memory_order_acquire);
+    if (last_avg_time == 0)
+        last_avg_time = curr_exec_time;
+
+    auto updated_avg_time = (last_avg_time * 15 + curr_exec_time) / 16;
+
+    avg_exec_time_.store(updated_avg_time, std::memory_order_release);
 }
 
 }  // namespace sme

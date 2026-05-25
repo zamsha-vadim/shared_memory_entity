@@ -1,42 +1,58 @@
+#include <algorithm>
 #include <climits>
+#include <deque>
 #include <list>
 #include <mutex>
 #include <thread>
+#include <vector>
 
 #include <gtest/gtest.h>
 
 #include "sme/adapt_spin_lock.h"
 
-void Payload(uint64_t item_count, sme::AdaptiveSpinLock& spin_lock)
+void Payload(uint64_t try_count, uint64_t item_count, sme::AdaptiveSpinLock& spin_lock)
 {
     auto tid = gettid();
 
-    std::string begin_msg = "BEGIN:" + std::to_string(tid) + "\n";
+    try {
+        //        std::string begin_msg = "BEGIN:" + std::to_string(tid) + "\n";
+        //        std::cout << begin_msg << std::flush;
 
-    std::cout << begin_msg << std::flush;
+        for (auto i = 0UL; i < try_count; i++) {
+            std::deque<std::string> data;
 
-    std::unique_lock ul{spin_lock};
+            std::unique_lock ul{spin_lock};
 
-    std::cout << "ACQUIRED:" << tid << std::endl;
+            //std::string acq_msg = "\nACQUIRED:" + std::to_string(tid) + "\n";
+            //std::cout << std::flush << acq_msg;
 
-    auto begin = std::numeric_limits<uint64_t>::max();
-    auto end = begin - item_count;
+            auto begin = std::numeric_limits<uint64_t>::max();
+            auto end = begin - item_count;
 
-    std::list<std::string> data;
+            for (auto i = begin; i > end; i--) {
+                std::string s = std::to_string(i);
+                data.push_back(s);
+            }
 
-    for (auto i = begin; i > end; i--) {
-        std::string s = std::to_string(i);
-        data.push_back(s);
+            std::sort(data.begin(), data.end());
+            //data.sort();
+
+            //    for (const auto& s : data)
+            //        std::cout << tid << ": " << s << std::endl;
+
+            ul.unlock();
+
+            // std::string rel_msg = "RELEASED:" + std::to_string(tid) + "\n";
+            // std::cout << rel_msg << std::flush;
+        }
+
+    } catch (const std::exception& ex) {
+        std::string err_msg =
+            "\n###ERROR:" + std::to_string(tid) + ": " + ex.what() + "\n";
+        std::cout << std::flush << err_msg << std::flush;
+
+        abort();
     }
-
-    data.sort();
-
-    for (const auto& s : data)
-        std::cout << tid << ": " << s << std::endl;
-
-    ul.unlock();
-
-    std::cout << "RELEASED:" << tid << std::endl;
 }
 
 TEST(AdaptiveSpinLockTest, TestNotContendedLockAndUnlock)
@@ -50,25 +66,24 @@ TEST(AdaptiveSpinLockTest, TestNotContendedLockAndUnlock)
 
 TEST(AdaptiveSpinLockTest, TestPairedContended)
 {
-    sme::AdaptiveSpinLock spin_lock;
+    sme::AdaptiveSpinLock spin_lock{6};
 
     std::atomic<bool> ready{false};
     std::vector<std::thread> thrs;
 
-    auto thr_func = [&ready, &spin_lock](uint64_t item_count) {
+    auto thr_func = [&ready, &spin_lock](uint64_t try_count, uint64_t item_count) {
         while (!ready) {
             ;
         }
 
-        Payload(item_count, spin_lock);
+        Payload(try_count, item_count, spin_lock);
     };
 
-    for (int i = 0; i < 20; i++)
-        thrs.emplace_back(std::thread{thr_func, 30});
+    for (int i = 0; i < 2; i++)
+        thrs.emplace_back(std::thread{thr_func, 1'000'000UL, 10});
 
     ready = true;
 
-    for (auto& thr : thrs) {
+    for (auto& thr : thrs)
         thr.join();
-    }
 }
