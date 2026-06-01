@@ -4,13 +4,14 @@
 #include <atomic>
 #include <cstdint>
 
+#include "sme/internal/type.h"
 #include "sme/sme_export.h"
 
 namespace sme {
 
-class SME_EXPORT AdaptiveSpinLock {
+class alignas(kCacheLineSize) SME_EXPORT AdaptiveSpinLock {
    public:
-    AdaptiveSpinLock(unsigned short concur_wait_num = 4);
+    AdaptiveSpinLock();
 
     AdaptiveSpinLock(const AdaptiveSpinLock&) = delete;
     AdaptiveSpinLock(AdaptiveSpinLock&&) = delete;
@@ -24,16 +25,26 @@ class SME_EXPORT AdaptiveSpinLock {
     void unlock();
 
    private:
-    void MarkExecutionTimestamp() noexcept;
-    void UpdateAvarageExecutionTime() noexcept;
+    auto CalculateWaitTime(uint64_t active_lock_id, uint64_t last_lock_id) noexcept
+        -> uint64_t;
+
+    inline void UpdateAvarageAcquiringTime(uint64_t begin_acq_time) noexcept;
+    
+    inline void MarkExecutionTimestamp() noexcept;
+    inline void UpdateAvarageExecutionTime() noexcept;
 
    private:
-    unsigned short concur_wait_num_{};
     uint64_t begin_timestamp_{0};
     std::atomic<uint64_t> avg_exec_time_{0};
     std::atomic<uint64_t> avg_acq_time_{0};
+    std::atomic<uint64_t> max_acq_time_{0};
+    
+    alignas(kCacheLineSize) std::atomic<uint32_t> sync_var_{0};
+    std::atomic<uint64_t> active_lock_id_{0};
+    std::atomic<uint64_t> last_lock_id_{0};
+
     std::atomic<uint64_t> lock_count_{0};
-    std::atomic<uint32_t> sync_var_{0};
+    unsigned int concur_wait_num_{};
 };
 
 }  // namespace sme

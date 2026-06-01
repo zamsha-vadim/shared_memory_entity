@@ -221,6 +221,8 @@ set(sme_public_headers
 )
 
 set(sme_private_headers
+    ${INCLUDE_DIR}/internal/type.h
+
     ${INCLUDE_DIR}/internal/string_hash.h
 
     ${INCLUDE_DIR}/internal/ref_count.h

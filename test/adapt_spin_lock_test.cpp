@@ -66,7 +66,7 @@ TEST(AdaptiveSpinLockTest, TestNotContendedLockAndUnlock)
 
 TEST(AdaptiveSpinLockTest, TestPairedContended)
 {
-    sme::AdaptiveSpinLock spin_lock{6};
+    sme::AdaptiveSpinLock spin_lock{};
 
     std::atomic<bool> ready{false};
     std::vector<std::thread> thrs;
@@ -79,8 +79,12 @@ TEST(AdaptiveSpinLockTest, TestPairedContended)
         Payload(try_count, item_count, spin_lock);
     };
 
-    for (int i = 0; i < 2; i++)
-        thrs.emplace_back(std::thread{thr_func, 1'000'000UL, 10});
+    //uint64_t try_count = 10'000;
+    uint64_t try_count = 100'000UL;
+    //uint64_t try_count = 1'000'000UL;
+
+    for (int i = 0; i < 20; i++)
+        thrs.emplace_back(std::thread{thr_func, try_count, 10});
 
     ready = true;
 
