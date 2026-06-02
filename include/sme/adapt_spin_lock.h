@@ -11,7 +11,10 @@ namespace sme {
 
 class alignas(kCacheLineSize) SME_EXPORT AdaptiveSpinLock {
    public:
-    AdaptiveSpinLock();
+    enum class Type { kAdaptive, kNoAdaptive };
+
+   public:
+    AdaptiveSpinLock(Type type = Type::kAdaptive);
 
     AdaptiveSpinLock(const AdaptiveSpinLock&) = delete;
     AdaptiveSpinLock(AdaptiveSpinLock&&) = delete;
@@ -44,7 +47,9 @@ class alignas(kCacheLineSize) SME_EXPORT AdaptiveSpinLock {
     std::atomic<uint64_t> last_lock_id_{0};
 
     std::atomic<uint64_t> lock_count_{0};
+    std::atomic<uint64_t> resched_count_{0};
     unsigned int concur_wait_num_{};
+    Type type_{};
 };
 
 }  // namespace sme
