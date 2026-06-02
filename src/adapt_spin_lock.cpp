@@ -29,9 +29,9 @@ auto ToNanoseconds(const timespec& time) noexcept -> uint64_t
     return time.tv_sec * kNanosecondsPerSec + time.tv_nsec;
 }
 
-auto DiffNanoseconds(const timespec& start, const timespec& end) noexcept -> uint64_t
+auto SubNanoseconds(const timespec& start, const timespec& end) noexcept -> uint64_t
 {
-    uint64_t sec = end.tv_sec - start.tv_sec;
+    auto sec = end.tv_sec - start.tv_sec;
     uint64_t nsec = 0;
 
     if (end.tv_nsec >= start.tv_nsec) {
@@ -41,7 +41,7 @@ auto DiffNanoseconds(const timespec& start, const timespec& end) noexcept -> uin
         nsec = (end.tv_nsec + kNanosecondsPerSec) - start.tv_nsec;
     }
 
-    return sec * kNanosecondsPerSec + nsec;
+    return (sec * kNanosecondsPerSec) + nsec;
 }
 
 inline auto GetCpuCycles() noexcept -> uint64_t
@@ -77,21 +77,22 @@ auto CalibrateTimer() noexcept -> uint64_t
         start_cycles = GetCpuCycles();
 
         int res = nanosleep(&request_sleep_time, &remaining_time);
-        if (res == -1) {
+        if (res == -1)
             continue;
-        }
 
         end_cycles = GetCpuCycles();
         clock_gettime(CLOCK_MONOTONIC_RAW, &end_real);
 
-        break;
+        if (end_cycles > start_cycles)
+            break;
     }
 
-    uint64_t delta_ns = DiffNanoseconds(start_real, end_real);
+    uint64_t delta_ns = SubNanoseconds(start_real, end_real);
     uint64_t delta_cycles = end_cycles - start_cycles;
 
-    if (delta_cycles > 0 && delta_ns > 0)
+    if (delta_cycles > 0 && delta_ns > 0) {
         return (delta_ns << kTscShift) / delta_cycles;
+    }
 
     return 0;
 }
@@ -112,7 +113,8 @@ const uint64_t kTscMultiplier = CalibrateTimer();
 
 auto GetTimestamp() noexcept -> uint64_t
 {
-    return (kTscMultiplier != 0) ? ((GetCpuCycles() * kTscMultiplier) >> kTscShift)
+    // TODO
+    return (kTscMultiplier == 0) ? ((GetCpuCycles() * kTscMultiplier) >> kTscShift)
                                  : GetThreadCpuTime();
 }
 
@@ -195,6 +197,8 @@ void AdaptiveSpinLock::lock()
                     if (stage_elapsed_time >= max_wait_time && max_wait_time != 0) {
                         LockFutex(sync_var_);
 
+                        lock_count_.fetch_add(1, std::memory_order_relaxed);
+
                         auto curr_active_id = active_lock_id_.load(std::memory_order_relaxed);
                         while (curr_active_id < this_lock_id) {
                             if (active_lock_id_.compare_exchange_weak(
@@ -213,6 +217,7 @@ void AdaptiveSpinLock::lock()
                         break;
                 } else {
                     resched_count_.fetch_add(1, std::memory_order_relaxed);
+
                     begin_time = GetTimestamp();
                     this_lock_id = last_lock_id_.fetch_add(1, std::memory_order_acq_rel);
                 }
@@ -275,11 +280,11 @@ void AdaptiveSpinLock::UpdateAvarageAcquiringTime(uint64_t begin_acq_time) noexc
     auto last_acq_time = avg_acq_time_.load(std::memory_order_acquire);
     auto updated_acq_time =
         CalculateAverageTimeSpan(begin_acq_time, curr_time, last_acq_time);
-    avg_acq_time_.store(updated_acq_time, std::memory_order_release);
+    avg_acq_time_.store(updated_acq_time, std::memory_order_relaxed);
 
     auto curr_acq_time = curr_time - begin_acq_time;
-    if (curr_acq_time > max_acq_time_.load(std::memory_order_acquire))
-        max_acq_time_.store(curr_acq_time, std::memory_order_release);
+    if (curr_acq_time > max_acq_time_.load(std::memory_order_relaxed))
+        max_acq_time_.store(curr_acq_time, std::memory_order_relaxed);
 }
 
 void AdaptiveSpinLock::MarkExecutionTimestamp() noexcept

@@ -11,7 +11,7 @@ namespace sme {
 
 class alignas(kCacheLineSize) SME_EXPORT AdaptiveSpinLock {
    public:
-    enum class Type { kAdaptive, kNoAdaptive };
+    enum class Type { kAdaptive, kSpinOnly };
 
    public:
     AdaptiveSpinLock(Type type = Type::kAdaptive);
