@@ -20,31 +20,26 @@ namespace sme {
 namespace {
 
 const unsigned int kCpuNumber{static_cast<unsigned int>(get_nprocs())};
-
 constexpr uint64_t kNanosecondsPerSec{1'000'000'000UL};
-constexpr uint8_t kTscShift{32};
 
-auto ToNanoseconds(const timespec& time) noexcept -> uint64_t
+[[maybe_unused]] auto ToNanoseconds(const timespec& time) noexcept -> uint64_t
 {
     return time.tv_sec * kNanosecondsPerSec + time.tv_nsec;
 }
 
-auto SubNanoseconds(const timespec& start, const timespec& end) noexcept -> uint64_t
+[[maybe_unused]] auto GetCpuTime() noexcept -> uint64_t
 {
-    auto sec = end.tv_sec - start.tv_sec;
-    uint64_t nsec = 0;
+    struct timespec time {};
 
-    if (end.tv_nsec >= start.tv_nsec) {
-        nsec = end.tv_nsec - start.tv_nsec;
-    } else {
-        sec -= 1;
-        nsec = (end.tv_nsec + kNanosecondsPerSec) - start.tv_nsec;
-    }
+    auto res = clock_gettime(CLOCK_MONOTONIC_RAW, &time);
+    assert(res != -1);
+    if (res == -1)
+        return 0;
 
-    return (sec * kNanosecondsPerSec) + nsec;
+    return ToNanoseconds(time);
 }
 
-inline auto GetCpuCycles() noexcept -> uint64_t
+[[maybe_unused]] inline auto GetCpuCycles() noexcept -> uint64_t
 {
 #if defined(__x86_64__)
     unsigned int cpu;
@@ -57,65 +52,19 @@ inline auto GetCpuCycles() noexcept -> uint64_t
         : "=r"(counter)
         :
         : "memory");
-    return counter;
+    return counter << 6;
+#else
+    return 0;
 #endif
 }
 
-auto CalibrateTimer() noexcept -> uint64_t
-{
-    const struct timespec request_sleep_time {
-        .tv_sec = 0, .tv_nsec = 10'000'000
-    };
-    struct timespec start_real{}, end_real{};
-    struct timespec remaining_time{};
-
-    uint64_t start_cycles = 0;
-    uint64_t end_cycles = 0;
-
-    for (;;) {
-        clock_gettime(CLOCK_MONOTONIC_RAW, &start_real);
-        start_cycles = GetCpuCycles();
-
-        int res = nanosleep(&request_sleep_time, &remaining_time);
-        if (res == -1)
-            continue;
-
-        end_cycles = GetCpuCycles();
-        clock_gettime(CLOCK_MONOTONIC_RAW, &end_real);
-
-        if (end_cycles > start_cycles)
-            break;
-    }
-
-    uint64_t delta_ns = SubNanoseconds(start_real, end_real);
-    uint64_t delta_cycles = end_cycles - start_cycles;
-
-    if (delta_cycles > 0 && delta_ns > 0) {
-        return (delta_ns << kTscShift) / delta_cycles;
-    }
-
-    return 0;
-}
-
-auto GetThreadCpuTime() noexcept -> uint64_t
-{
-    struct timespec time {};
-
-    auto res = clock_gettime(CLOCK_MONOTONIC_RAW, &time);
-    assert(res != -1);
-    if (res == -1)
-        return 0;
-
-    return ToNanoseconds(time);
-}
-
-const uint64_t kTscMultiplier = CalibrateTimer();
-
 auto GetTimestamp() noexcept -> uint64_t
 {
-    // TODO
-    return (kTscMultiplier == 0) ? ((GetCpuCycles() * kTscMultiplier) >> kTscShift)
-                                 : GetThreadCpuTime();
+#if defined(__x86_64__) || defined(__aarch64__)
+    return GetCpuCycles();
+#else
+    return GetCpuTime();
+#endif    
 }
 
 auto CalculateAverageTimeSpan(uint64_t begin_time,
@@ -139,9 +88,24 @@ void RelaxCpu()
 
 void LockFutex(std::atomic<FutexValueType>& sync_var)
 {
-    auto res = LockPiFutex(sync_var);
-    if (res == PiFutexResult::kOwnerDied)
-        SetConsistentPiFutex(sync_var);
+    for (;;) {
+        PiFutexResult res = LockPiFutex(sync_var);
+
+        if (res == PiFutexResult::kCompleted) {
+            if (IsPiFutexOwnerDied(sync_var))
+                SetConsistentPiFutex(sync_var);
+            return;
+        }
+
+        if (res == PiFutexResult::kOwnerDied) {
+            auto curr_tid = gettid();
+            auto owner_tid = sync_var.load(std::memory_order_acquire);
+
+            if (sync_var.compare_exchange_strong(owner_tid, curr_tid,
+                                                 std::memory_order_relaxed))
+                return;
+        }
+    }
 }
 
 void UnlockFutex(std::atomic<FutexValueType>& sync_var)
