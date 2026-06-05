@@ -92,7 +92,7 @@ TEST(AdaptiveSpinLockTest, TestThreadContended)
 
     uint64_t item_count = 50;
 
-    auto thr_count = (g_cpu_number >= 8) ? (8/*g_cpu_number - 2*/) : g_cpu_number;
+    auto thr_count = (g_cpu_number >= 8) ? (g_cpu_number - 2) : g_cpu_number;
 
     for (int i = 0; i < thr_count; i++)
         thrs.emplace_back(std::thread{thr_func, try_count, item_count});
@@ -164,7 +164,7 @@ TEST(AdaptiveSpinLockTest, TestProcessContended)
     ASSERT_FALSE(failed);
 }
 
-TEST(AdaptiveSpinLockTest, TestRestoreAfterOwnerDied)
+TEST(AdaptiveSpinLockTest, TestRestoreAfterOneUnlockedProcess)
 {
     auto shm_file = CreateTestSharedMemoryFile(GetUniqueName(), sizeof(sme::AdaptiveSpinLock));
     SharedMemoryFileDeleter smfd{shm_file};
@@ -190,7 +190,7 @@ TEST(AdaptiveSpinLockTest, TestRestoreAfterOwnerDied)
     spin_lock->~AdaptiveSpinLock();
 }
 
-TEST(AdaptiveSpinLockTest, TestCrashedProcessContended)
+TEST(AdaptiveSpinLockTest, TestRestoreAfterManyUnlockedProcesses)
 {
     auto shm_file = CreateTestSharedMemoryFile(GetUniqueName(), sizeof(WorkStruct));
     SharedMemoryFileDeleter smfd{shm_file};
@@ -200,7 +200,7 @@ TEST(AdaptiveSpinLockTest, TestCrashedProcessContended)
 
     std::deque<pid_t> procs;
 
-    auto proc_count = 10;//15;//(g_cpu_number >= 8) ? (g_cpu_number - 2) : g_cpu_number;
+    auto proc_count = (g_cpu_number >= 8) ? (g_cpu_number - 2) : g_cpu_number;
 
     // uint64_t try_count = 1000;
     uint64_t try_count = 10'000;
@@ -223,13 +223,7 @@ TEST(AdaptiveSpinLockTest, TestCrashedProcessContended)
                 if ((i % 2) != 0) {
                     Payload(try_count, item_count, work_obj->spin_lock);
                 } else {
-                    try {
                     work_obj->spin_lock.lock();
-                    } catch (...) {}
-
-                    //work_obj = nullptr;
-                    //*work_obj;
-                    //raise(SIGINT);
                 }
             }
 
@@ -259,5 +253,5 @@ TEST(AdaptiveSpinLockTest, TestCrashedProcessContended)
 
     work_obj->~WorkStruct();
 
-    //ASSERT_FALSE(failed);
+    ASSERT_FALSE(failed);
 }

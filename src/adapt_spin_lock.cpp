@@ -4,16 +4,13 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#if defined(__x86_64__)
-#include <x86intrin.h>
-#endif
-
 #include <cassert>
 #include <ctime>
 #include <iostream>
 #include <thread>
 
 #include "sme/futex.h"
+#include "sme/internal/util.h"
 
 namespace sme {
 
@@ -71,23 +68,16 @@ auto CalculateAverageTimeSpan(uint64_t begin_time,
                               uint64_t end_time,
                               uint64_t prev_avg_time_span) noexcept -> uint64_t
 {
-    auto curr_span = end_time - begin_time;
+    auto curr_span = (end_time > begin_time) ? (end_time - begin_time) : 0;
     if (prev_avg_time_span == 0)
         prev_avg_time_span = curr_span;
     return (prev_avg_time_span * 15 + curr_span) / 16;
 }
 
-void RelaxCpu()
+void LockFutex(pid_t curr_tid, std::atomic<FutexValueType>& sync_var)
 {
-#if defined(__x86_64__)
-    __builtin_ia32_pause();
-#elif defined(__aarch64__)
-    asm volatile("yield" ::: "memory");
-#endif
-}
+    auto owner_tid = sync_var.load(std::memory_order_acquire);
 
-void LockFutex(std::atomic<FutexValueType>& sync_var)
-{
     for (;;) {
         PiFutexResult res = LockPiFutex(sync_var);
 
@@ -98,9 +88,6 @@ void LockFutex(std::atomic<FutexValueType>& sync_var)
         }
 
         if (res == PiFutexResult::kOwnerDied) {
-            auto curr_tid = gettid();
-            auto owner_tid = sync_var.load(std::memory_order_acquire);
-
             if (sync_var.compare_exchange_strong(owner_tid, curr_tid,
                                                  std::memory_order_relaxed))
                 return;
@@ -140,7 +127,7 @@ void AdaptiveSpinLock::lock()
     uint64_t begin_time{0};
 
     auto active_lock_id = active_lock_id_.load(std::memory_order_acquire);
-    auto this_lock_id = last_lock_id_.fetch_add(1, std::memory_order_acq_rel);
+    auto this_lock_id = last_lock_id_.fetch_add(1, std::memory_order_relaxed);
 
     if (active_lock_id == this_lock_id)
         acquired = sync_var_.compare_exchange_strong(owner_tid, curr_tid,
@@ -159,7 +146,7 @@ void AdaptiveSpinLock::lock()
                     auto stage_elapsed_time = GetTimestamp() - begin_time;
 
                     if (stage_elapsed_time >= max_wait_time && max_wait_time != 0) {
-                        LockFutex(sync_var_);
+                        LockFutex(curr_tid, sync_var_);
 
                         lock_count_.fetch_add(1, std::memory_order_relaxed);
 

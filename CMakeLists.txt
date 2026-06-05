@@ -222,6 +222,7 @@ set(sme_public_headers
 
 set(sme_private_headers
     ${INCLUDE_DIR}/internal/type.h
+    ${INCLUDE_DIR}/internal/util.h
 
     ${INCLUDE_DIR}/internal/string_hash.h
 

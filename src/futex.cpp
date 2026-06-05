@@ -10,6 +10,8 @@
 #include <utility>
 #include <iostream>
 
+#include "sme/internal/util.h"
+
 // NOLINTBEGIN(icppcoreguidelines-pro-type-vararg, google-runtime-int,
 // cppcoreguidelines-pro-type-reinterpret-cast)
 
@@ -127,6 +129,7 @@ auto LockPiFutex(FutexValueType& value, const std::chrono::milliseconds& timeout
             case ETIMEDOUT:
                 return PiFutexResult::kTimeout;
             case EAGAIN:
+                RelaxCpu();
                 continue;
             case ESRCH:
                 return PiFutexResult::kOwnerDied;
