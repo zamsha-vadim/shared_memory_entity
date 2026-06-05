@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <climits>
 #include <csignal>
+#include <cstring>
 #include <deque>
 #include <list>
 #include <mutex>
@@ -176,13 +177,14 @@ TEST(AdaptiveSpinLockTest, TestRestoreAfterOneUnlockedProcess)
     if (pid == 0) {
         spin_lock->lock();
         exit(EXIT_SUCCESS);
-    } else {
-        ASSERT_TRUE(pid != -1);
+    } else if (pid == -1) {
+        FAIL() << "Process fork failed: " << std::strerror(errno);
     }
 
     int proc_status{0};
     auto res = waitpid(pid, &proc_status, 0);
-    ASSERT_TRUE(res != -1);
+    if (res == -1)
+        FAIL() << "Process pid wait failed: " << std::strerror(errno);
 
     ASSERT_NO_THROW(spin_lock->lock());
     ASSERT_NO_THROW(spin_lock->unlock());

@@ -25,7 +25,7 @@ class SME_EXPORT MemorySpace final {
    public:
     MemorySpace(const Pointer<void>& mem,
                 size_t size,
-                Synchronizer::Type sync_type = Synchronizer::Type::kNone);
+                SynchronizationType sync_type = SynchronizationType::kNone);
 
     MemorySpace(const MemorySpace&) = delete;
     MemorySpace(MemorySpace&& obj) noexcept = delete;
@@ -85,7 +85,7 @@ class SME_EXPORT MemorySpace final {
         [[nodiscard]] auto operator*() const -> value_type;
 
         [[nodiscard]] operator bool() const noexcept;
-        [[nodiscard]] auto operator !() const noexcept -> bool;
+        [[nodiscard]] auto operator!() const noexcept -> bool;
 
         auto operator++() -> Iterator&;
         auto operator++(int) -> Iterator;
@@ -112,8 +112,8 @@ class SME_EXPORT MemorySpace final {
     auto GetAllocatedBlock(const Pointer<void>& data_ptr) const -> const Block&;
     auto GetAllocatedBlock(Pointer<void>& data_ptr) -> Block&;
 
-    auto Intersects(const MemorySpaceBlock& block1,
-                    const MemorySpaceBlock& block2) noexcept -> bool;
+    auto Intersects(const MemorySpaceBlock& block1, const MemorySpaceBlock& block2) noexcept
+        -> bool;
 
    private:
     const uint64_t kTypeCheckValue;

@@ -9,7 +9,7 @@
 
 namespace sme {
 
-class alignas(kCacheLineSize) SME_EXPORT AdaptiveSpinLock {
+class SME_EXPORT AdaptiveSpinLock {
    public:
     enum class Type { kAdaptive, kSpinOnly };
 
@@ -24,7 +24,6 @@ class alignas(kCacheLineSize) SME_EXPORT AdaptiveSpinLock {
     ~AdaptiveSpinLock();
 
     void lock();
-    //    auto try_lock() -> bool;
     void unlock();
 
    private:
@@ -37,17 +36,18 @@ class alignas(kCacheLineSize) SME_EXPORT AdaptiveSpinLock {
     inline void UpdateAvarageExecutionTime() noexcept;
 
    private:
+    alignas(kCacheLineSize) std::atomic<uint32_t> sync_var_{0};
+    std::atomic<uint64_t> active_lock_id_{0};
+    std::atomic<uint64_t> last_lock_id_{0};
+
     uint64_t begin_timestamp_{0};
     std::atomic<uint64_t> avg_exec_time_{0};
     std::atomic<uint64_t> avg_acq_time_{0};
     std::atomic<uint64_t> max_acq_time_{0};
     
-    alignas(kCacheLineSize) std::atomic<uint32_t> sync_var_{0};
-    std::atomic<uint64_t> active_lock_id_{0};
-    std::atomic<uint64_t> last_lock_id_{0};
-
     std::atomic<uint64_t> lock_count_{0};
     std::atomic<uint64_t> resched_count_{0};
+
     unsigned int concur_wait_num_{};
     Type type_{};
 };

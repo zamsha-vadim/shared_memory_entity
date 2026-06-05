@@ -11,7 +11,6 @@
 #include "sme/mem_domain.h"
 #include "sme/mem_map.h"
 #include "sme/sme_export.h"
-#include "sme/sync_type.h"
 
 namespace sme {
 
@@ -130,7 +129,9 @@ class SME_EXPORT MessageChannel final {
     enum InitialState { kCreate, kOpen };
 
    public:
-    MessageChannel(MemoryMap mem_map, InitialState init_state);
+    MessageChannel(MemoryMap mem_map,
+                   InitialState init_state,
+                   SynchronizationType sync_type = SynchronizationType::kAdaptiveSpinlock);
 
     MessageChannel(const MessageChannel&) = delete;
     MessageChannel(MessageChannel&&) = delete;

@@ -2,7 +2,7 @@
 
 #include <new>
 
-//#include "sme/internal/queue.h"
+// #include "sme/internal/queue.h"
 #include "sme/internal/lf_queue.h"
 #include "sme/mapped_obj.h"
 
@@ -24,14 +24,13 @@ struct SME_NO_EXPORT MessageChannelLayout {
 
 namespace {
 
-auto CreateMessageChannelLayout(MemoryMap& mem_map) -> MessageChannelLayout*
+auto CreateMessageChannelLayout(MemoryMap& mem_map, SynchronizationType sync_type)
+    -> MessageChannelLayout*
 {
     auto* map_addr = EnsureAddress<MessageChannelLayout>(mem_map, 0);
 
-    auto* space_mem =
-        static_cast<char*>(mem_map.GetAddress()) + sizeof(MessageChannelLayout);
-    auto align_rest =
-        reinterpret_cast<uintptr_t>(space_mem) % alignof(MessageChannelLayout);
+    auto* space_mem = static_cast<char*>(mem_map.GetAddress()) + sizeof(MessageChannelLayout);
+    auto align_rest = reinterpret_cast<uintptr_t>(space_mem) % alignof(MessageChannelLayout);
     if (align_rest != 0)
         space_mem += alignof(MessageChannelLayout) - align_rest;
 
@@ -39,10 +38,7 @@ auto CreateMessageChannelLayout(MemoryMap& mem_map) -> MessageChannelLayout*
         mem_map.GetSize() - (space_mem - static_cast<const char*>(mem_map.GetAddress()));
 
     return new (map_addr) MessageChannelLayout{
-        .memory_space = MemorySpace{space_mem, space_size,
-                                    mem_map.IsShared() ? Synchronizer::Type::kShared
-                                                       : Synchronizer::Type::kPrivate},
-        .messages = {}};
+        .memory_space = MemorySpace{space_mem, space_size, sync_type}, .messages = {}};
 }
 
 auto GetMessageChannelLayout(MemoryMap& mem_map) -> MessageChannelLayout&
@@ -54,11 +50,11 @@ auto GetMessageChannelLayout(MemoryMap& mem_map) -> MessageChannelLayout&
 }
 
 auto SupplyMessageChannelLayout(MemoryMap& mem_map,
-                                MessageChannel::InitialState init_state)
-    -> MessageChannelLayout&
+                                MessageChannel::InitialState init_state,
+                                SynchronizationType sync_type) -> MessageChannelLayout&
 {
     return (init_state == MessageChannel::InitialState::kCreate)
-               ? *CreateMessageChannelLayout(mem_map)
+               ? *CreateMessageChannelLayout(mem_map, sync_type)
                : GetMessageChannelLayout(mem_map);
 }
 
@@ -82,7 +78,8 @@ Message::Message(MemoryDomain& mem_domain, MessageDeleter deleter) noexcept
 {
 }
 
-Message::~Message() {
+Message::~Message()
+{
     assert(ref_counter_.GetValue() == 0);
 }
 
@@ -135,8 +132,7 @@ void Message::ValidateState() const
         throw std::logic_error("Message is invalid");
 }
 
-auto Message::AddReference(ReferenceCounterType amount) const noexcept
-    -> ReferenceCounterType
+auto Message::AddReference(ReferenceCounterType amount) const noexcept -> ReferenceCounterType
 {
     return ref_counter_.Increment(amount);
 }
@@ -229,7 +225,7 @@ auto MessageWriter::Commit(IntrusivePtr<Message>& msg_ptr) -> QueueResult
         throw;
     }
 
-    return res;    
+    return res;
 }
 
 // class MessageReader
@@ -266,9 +262,11 @@ auto MessageReader::IsEmpty() const noexcept -> bool
 
 // class MessageChannel
 
-MessageChannel::MessageChannel(MemoryMap mem_map, InitialState init_state)
+MessageChannel::MessageChannel(MemoryMap mem_map,
+                               InitialState init_state,
+                               SynchronizationType sync_type)
     : mem_map_{std::move(mem_map)},
-      data_layout_{SupplyMessageChannelLayout(mem_map_, init_state)},
+      data_layout_{SupplyMessageChannelLayout(mem_map_, init_state, sync_type)},
       reader_{data_layout_}, writer_{data_layout_}
 {
 }
@@ -283,7 +281,8 @@ auto MessageChannel::GetWriter() -> MessageWriter&
     return writer_;
 }
 
-void MessageChannel::Disable(bool state) {
+void MessageChannel::Disable(bool state)
+{
     data_layout_.messages.Disable(state);
 }
 

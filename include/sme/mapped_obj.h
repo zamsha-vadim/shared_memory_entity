@@ -40,7 +40,7 @@ auto SME_EXPORT EnsureAddress(const MemoryMap& mem_map, size_t ofs) -> const voi
 [[nodiscard]] auto SME_EXPORT ConstructMemorySpace(
     MemoryMap& mem_map,
     size_t ofs = 0,
-    Synchronizer::Type sync_type = Synchronizer::Type::kShared) -> MemorySpace*;
+    SynchronizationType sync_type = SynchronizationType::kSharedMutex) -> MemorySpace*;
 
 [[nodiscard]] auto SME_EXPORT GetMemorySpace(MemoryMap& mem_map, size_t ofs = 0)
     -> MemorySpace&;

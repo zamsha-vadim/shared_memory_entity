@@ -32,11 +32,11 @@ class SME_EXPORT MemoryDomain {
 
    public:
     explicit MemoryDomain(MemorySpace& mem_space,
-                          Synchronizer::Type sync_type = Synchronizer::Type::kNone);
+                          SynchronizationType sync_type = SynchronizationType::kNone);
 
     explicit MemoryDomain(MemorySpace& mem_space,
                           size_t domain_size,
-                          Synchronizer::Type sync_type = Synchronizer::Type::kNone);
+                          SynchronizationType sync_type = SynchronizationType::kNone);
 
     MemoryDomain(const MemoryDomain&) = delete;
     MemoryDomain(MemoryDomain&&) = delete;
@@ -98,12 +98,12 @@ auto MemoryDomain::GetAddressState(const T* ptr) const noexcept
 
 [[nodiscard]] auto SME_EXPORT CreateMemoryDomain(
     MemorySpace& mem_space,
-    Synchronizer::Type sync_type = Synchronizer::Type::kNone) -> Pointer<MemoryDomain>;
+    SynchronizationType sync_type = SynchronizationType::kNone) -> Pointer<MemoryDomain>;
 
 [[nodiscard]] auto SME_EXPORT CreateMemoryDomain(
     MemorySpace& mem_space,
     size_t domain_size,
-    Synchronizer::Type sync_type = Synchronizer::Type::kNone) -> Pointer<MemoryDomain>;
+    SynchronizationType sync_type = SynchronizationType::kNone) -> Pointer<MemoryDomain>;
 
 void SME_EXPORT DeleteMemoryDomain(Pointer<MemoryDomain>&) noexcept;
 void SME_EXPORT DeleteMemoryDomain(Pointer<MemoryDomain>&&) noexcept;

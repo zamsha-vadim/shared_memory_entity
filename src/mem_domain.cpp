@@ -47,7 +47,7 @@ constexpr uint64_t kMemoryDomainCheckTypeId{0x9F6680B020F62};
 
 }  // namespace
 
-MemoryDomain::MemoryDomain(MemorySpace& mem_space, Synchronizer::Type sync_type)
+MemoryDomain::MemoryDomain(MemorySpace& mem_space, SynchronizationType sync_type)
     : kTypeCheckValue{kMemoryDomainCheckTypeId},
       mem_space_{(ValidateMemorySpaceCapacity(mem_space), &mem_space)}, sync_{sync_type}
 {
@@ -55,7 +55,7 @@ MemoryDomain::MemoryDomain(MemorySpace& mem_space, Synchronizer::Type sync_type)
 
 MemoryDomain::MemoryDomain(MemorySpace& mem_space,
                            size_t domain_size,
-                           Synchronizer::Type sync_type)
+                           SynchronizationType sync_type)
     : MemoryDomain(mem_space, sync_type)
 {
     auto ptr = Allocate(domain_size);
@@ -109,8 +109,7 @@ void MemoryDomain::Deallocate(Pointer<void>&& ptr) noexcept
     Deallocate(ptr);
 }
 
-auto MemoryDomain::GetAddressState(const Pointer<void>& ptr) const noexcept
-    -> AddressState
+auto MemoryDomain::GetAddressState(const Pointer<void>& ptr) const noexcept -> AddressState
 {
     const std::lock_guard sync_guard{sync_};
 
@@ -183,8 +182,8 @@ auto MemoryDomain::AddFreeMemory(Size data_size) -> bool
     if (segment == nullptr)
         return false;
 
-    auto [free_block, redzone_block] = free_block_pool_.AddFreeMemoryArea(
-        segment->GetData(), segment->GetDataCapacity());
+    auto [free_block, redzone_block] =
+        free_block_pool_.AddFreeMemoryArea(segment->GetData(), segment->GetDataCapacity());
     if (free_block == nullptr) {
         DeallocateSegment(segment);
         return false;
@@ -237,8 +236,7 @@ void MemoryDomain::ShrinkSegments() noexcept
 
             segment->ShrinkData(new_redzone_block);
 
-            [[maybe_unused]] auto res =
-                mem_space_->Resize(segment, segment->GetSegmentSize());
+            [[maybe_unused]] auto res = mem_space_->Resize(segment, segment->GetSegmentSize());
             assert(res);
 
             seg_empty = (new_redzone_block == segment->GetData());
@@ -289,7 +287,8 @@ void MemoryDomain::ReleaseAllSegments() noexcept
     }
 }
 
-auto MemoryDomain::GetAllSegmentInfo() const -> std::deque<SegmentInfo> {
+auto MemoryDomain::GetAllSegmentInfo() const -> std::deque<SegmentInfo>
+{
     std::deque<SegmentInfo> seg_infos;
 
     for (Pointer<MemoryDomainSegment> segment = begin_segment_; segment != nullptr;
@@ -304,7 +303,7 @@ auto MemoryDomain::GetAllSegmentInfo() const -> std::deque<SegmentInfo> {
     return seg_infos;
 }
 
-auto CreateMemoryDomain(MemorySpace& mem_space, Synchronizer::Type sync_type)
+auto CreateMemoryDomain(MemorySpace& mem_space, SynchronizationType sync_type)
     -> Pointer<MemoryDomain>
 {
     return Create<MemoryDomain>(mem_space, mem_space, sync_type);
@@ -312,7 +311,7 @@ auto CreateMemoryDomain(MemorySpace& mem_space, Synchronizer::Type sync_type)
 
 auto CreateMemoryDomain(MemorySpace& mem_space,
                         size_t domain_size,
-                        Synchronizer::Type sync_type) -> Pointer<MemoryDomain>
+                        SynchronizationType sync_type) -> Pointer<MemoryDomain>
 {
     return Create<MemoryDomain>(mem_space, mem_space, domain_size, sync_type);
 }

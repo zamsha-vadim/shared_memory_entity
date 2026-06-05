@@ -44,8 +44,7 @@ class Checker {
     using SharedDataCreator =
         std::function<sme::Pointer<SharedDataType>(const ControlDataType&,
                                                    sme::MemoryDomain&)>;
-    using DataComparator =
-        std::function<bool(const ControlDataType&, const SharedDataType&)>;
+    using DataComparator = std::function<bool(const ControlDataType&, const SharedDataType&)>;
 
    public:
     Checker(ControlDataCreator ctrl_data_creator,
@@ -85,7 +84,7 @@ void Checker<ControlDataType, SharedDataType>::BuildSharedData(sme::MemoryMap& m
     auto* mem_space = sme::ConstructMemorySpace(mem_map, 0);
     auto* hdr_ptr = sme::msp::CreateRoot<MemoryHeader>(*mem_space);
     auto mem_domain =
-        sme::CreateMemoryDomain(*mem_space, sme::Synchronizer::Type::kShared);
+        sme::CreateMemoryDomain(*mem_space, sme::SynchronizationType::kSharedMutex);
 
     sme::AllocationContext<sme::MemoryDomain> mdm_ctx{*mem_domain};
 
@@ -114,10 +113,9 @@ auto Checker<ControlDataType, SharedDataType>::CompareData(sme::MemoryMap& mem_m
 enum class CheckResult : int { kNotEqual, kEqual, kNotSupported, kUndefined };
 
 template <typename ControlDataT, typename SharedDataT>
-auto Check(
-    typename Checker<ControlDataT, SharedDataT>::ControlDataCreator ctrl_data_creator,
-    typename Checker<ControlDataT, SharedDataT>::SharedDataCreator shm_data_creator,
-    typename Checker<ControlDataT, SharedDataT>::DataComparator data_comparator)
+auto Check(typename Checker<ControlDataT, SharedDataT>::ControlDataCreator ctrl_data_creator,
+           typename Checker<ControlDataT, SharedDataT>::SharedDataCreator shm_data_creator,
+           typename Checker<ControlDataT, SharedDataT>::DataComparator data_comparator)
     -> CheckResult
 {
     auto smf = CreateTestSharedMemoryFile(GetUniqueName(), kSharedMemorySize);
@@ -147,8 +145,7 @@ auto Check(
 
     auto pid = fork();
     if (pid == -1)
-        throw std::system_error(errno, std::generic_category(),
-                                "Can't fork test proccess");
+        throw std::system_error(errno, std::generic_category(), "Can't fork test proccess");
     if (pid == 0) {
         sme::MemoryFaultCatcher mf_catcher{shm_addr_begin, shm_addr_end};
 
@@ -251,9 +248,8 @@ TEST(MdmTest, TestVector)
         return vector;
     };
 
-    auto shm_data_creator =
-        [](const ControlVector& ctrl_vector,
-           sme::MemoryDomain& mem_domain) -> sme::Pointer<SharedVector> {
+    auto shm_data_creator = [](const ControlVector& ctrl_vector,
+                               sme::MemoryDomain& mem_domain) -> sme::Pointer<SharedVector> {
         auto* shm_vector = sme::Create<SharedVector>(mem_domain);
 
         shm_vector->reserve(ctrl_vector.size());
@@ -291,9 +287,8 @@ TEST(MdmTest, TestDeque)
         return vector;
     };
 
-    auto shm_data_creator =
-        [](const ControlDeque& ctrl_vector,
-           sme::MemoryDomain& mem_domain) -> sme::Pointer<SharedDeque> {
+    auto shm_data_creator = [](const ControlDeque& ctrl_vector,
+                               sme::MemoryDomain& mem_domain) -> sme::Pointer<SharedDeque> {
         auto* shm_deque = sme::Create<SharedDeque>(mem_domain);
 
         for (const auto& s : ctrl_vector)
@@ -308,8 +303,8 @@ TEST(MdmTest, TestDeque)
                           [](const auto& s1, const auto& s2) { return Compare(s1, s2); });
     };
 
-    auto res = Check<ControlDeque, SharedDeque>(ctrl_data_creator, shm_data_creator,
-                                                data_comparator);
+    auto res =
+        Check<ControlDeque, SharedDeque>(ctrl_data_creator, shm_data_creator, data_comparator);
     APPLY_RESULT(res);
 }
 
@@ -329,9 +324,8 @@ TEST(MdmTest, TestList)
         return list;
     };
 
-    auto shm_data_creator =
-        [](const ControlList& ctrl_list,
-           sme::MemoryDomain& mem_domain) -> sme::Pointer<SharedList> {
+    auto shm_data_creator = [](const ControlList& ctrl_list,
+                               sme::MemoryDomain& mem_domain) -> sme::Pointer<SharedList> {
         auto* shm_list = sme::Create<SharedList>(mem_domain);
 
         for (const auto& s : ctrl_list) {
@@ -346,8 +340,8 @@ TEST(MdmTest, TestList)
                           [](const auto& s1, const auto& s2) { return Compare(s1, s2); });
     };
 
-    auto res = Check<ControlList, SharedList>(ctrl_data_creator, shm_data_creator,
-                                              data_comparator);
+    auto res =
+        Check<ControlList, SharedList>(ctrl_data_creator, shm_data_creator, data_comparator);
     APPLY_RESULT(res);
 }
 
@@ -367,9 +361,8 @@ TEST(MdmTest, TestForwardList)
         return list;
     };
 
-    auto shm_data_creator =
-        [](const ControlList& ctrl_list,
-           sme::MemoryDomain& mem_domain) -> sme::Pointer<SharedList> {
+    auto shm_data_creator = [](const ControlList& ctrl_list,
+                               sme::MemoryDomain& mem_domain) -> sme::Pointer<SharedList> {
         auto* shm_list = sme::Create<SharedList>(mem_domain);
 
         for (const auto& s : ctrl_list)
@@ -384,8 +377,8 @@ TEST(MdmTest, TestForwardList)
                           [](const auto& s1, const auto& s2) { return Compare(s1, s2); });
     };
 
-    auto res = Check<ControlList, SharedList>(ctrl_data_creator, shm_data_creator,
-                                              data_comparator);
+    auto res =
+        Check<ControlList, SharedList>(ctrl_data_creator, shm_data_creator, data_comparator);
     APPLY_RESULT(res);
 }
 
@@ -429,8 +422,8 @@ TEST(MdmTest, TestIntMap)
                           });
     };
 
-    auto res = Check<ControlMap, SharedMap>(ctrl_data_creator, shm_data_creator,
-                                            data_comparator);
+    auto res =
+        Check<ControlMap, SharedMap>(ctrl_data_creator, shm_data_creator, data_comparator);
     APPLY_RESULT(res);
 }
 
@@ -474,8 +467,8 @@ TEST(MdmTest, TestStringMap)
                           });
     };
 
-    auto res = Check<ControlMap, SharedMap>(ctrl_data_creator, shm_data_creator,
-                                            data_comparator);
+    auto res =
+        Check<ControlMap, SharedMap>(ctrl_data_creator, shm_data_creator, data_comparator);
     APPLY_RESULT(res);
 }
 
@@ -530,8 +523,8 @@ TEST(MdmTest, TestIntUnorderedMap)
         return true;
     };
 
-    auto res = Check<ControlMap, SharedMap>(ctrl_data_creator, shm_data_creator,
-                                            data_comparator);
+    auto res =
+        Check<ControlMap, SharedMap>(ctrl_data_creator, shm_data_creator, data_comparator);
     APPLY_RESULT(res);
 }
 
@@ -586,8 +579,8 @@ TEST(MdmTest, TestStringUnorderedMap)
         return true;
     };
 
-    auto res = Check<ControlMap, SharedMap>(ctrl_data_creator, shm_data_creator,
-                                            data_comparator);
+    auto res =
+        Check<ControlMap, SharedMap>(ctrl_data_creator, shm_data_creator, data_comparator);
     APPLY_RESULT(res);
 }
 
@@ -621,13 +614,12 @@ TEST(MdmTest, TestIntSet)
     };
 
     auto data_comparator = [](const ControlSet& set1, const SharedSet& set2) -> bool {
-        return std::equal(
-            set1.cbegin(), set1.cend(), set2.cbegin(),
-            [](const auto& item1, const auto& item2) { return item1 == item2; });
+        return std::equal(set1.cbegin(), set1.cend(), set2.cbegin(),
+                          [](const auto& item1, const auto& item2) { return item1 == item2; });
     };
 
-    auto res = Check<ControlSet, SharedSet>(ctrl_data_creator, shm_data_creator,
-                                            data_comparator);
+    auto res =
+        Check<ControlSet, SharedSet>(ctrl_data_creator, shm_data_creator, data_comparator);
     APPLY_RESULT(res);
 }
 
@@ -666,8 +658,8 @@ TEST(MdmTest, TestStringSet)
             [](const auto& item1, const auto& item2) { return Compare(item1, item2); });
     };
 
-    auto res = Check<ControlSet, SharedSet>(ctrl_data_creator, shm_data_creator,
-                                            data_comparator);
+    auto res =
+        Check<ControlSet, SharedSet>(ctrl_data_creator, shm_data_creator, data_comparator);
     APPLY_RESULT(res);
 }
 
@@ -713,8 +705,8 @@ TEST(MdmTest, TestIntUnorderedSet)
         return true;
     };
 
-    auto res = Check<ControlSet, SharedSet>(ctrl_data_creator, shm_data_creator,
-                                            data_comparator);
+    auto res =
+        Check<ControlSet, SharedSet>(ctrl_data_creator, shm_data_creator, data_comparator);
     APPLY_RESULT(res);
 }
 
@@ -762,7 +754,7 @@ TEST(MdmTest, TestStringUnorderedSet)
         return true;
     };
 
-    auto res = Check<ControlSet, SharedSet>(ctrl_data_creator, shm_data_creator,
-                                            data_comparator);
+    auto res =
+        Check<ControlSet, SharedSet>(ctrl_data_creator, shm_data_creator, data_comparator);
     APPLY_RESULT(res);
 }

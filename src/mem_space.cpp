@@ -54,9 +54,7 @@ const MemorySpaceBlockMatcher g_free_block_matcher{&IsSuitableForAllocation};
 
 }  // namespace
 
-MemorySpace::MemorySpace(const Pointer<void>& mem,
-                         size_t size,
-                         Synchronizer::Type sync_type)
+MemorySpace::MemorySpace(const Pointer<void>& mem, size_t size, SynchronizationType sync_type)
     : kTypeCheckValue{kMemorySpaceCheckTypeId}, sync_{sync_type}, mem_manip_{mem, size},
       curr_block_{&mem_manip_.GetFirstBlock()}
 {
@@ -91,8 +89,7 @@ auto MemorySpace::Allocate(size_t size) -> Pointer<void>
 
     std::lock_guard lg{sync_};
 
-    Block* suitable_block =
-        mem_manip_.FindFreeBlock(*curr_block_, block_size, matcher, true);
+    Block* suitable_block = mem_manip_.FindFreeBlock(*curr_block_, block_size, matcher, true);
     if (suitable_block == nullptr)
         return {};
 
@@ -117,8 +114,7 @@ auto MemorySpace::AllocateAtLeast(size_t size) -> std::pair<Pointer<void>, size_
 
     std::lock_guard lg{sync_};
 
-    Block* suitable_block =
-        mem_manip_.FindFreeBlock(*curr_block_, block_size, matcher, true);
+    Block* suitable_block = mem_manip_.FindFreeBlock(*curr_block_, block_size, matcher, true);
     if (suitable_block == nullptr)
         return {};
 
@@ -289,8 +285,8 @@ auto MemorySpace::Iterator::GetValue() const -> value_type
     return (iter_block_ != nullptr)
                ? MemorySpace::AllocationInfo{.block = iter_block_,
                                              .data = iter_block_->data,
-                                             .position = mem_manip_->GetBlockPosition(
-                                                 *iter_block_),
+                                             .position =
+                                                 mem_manip_->GetBlockPosition(*iter_block_),
                                              .size = iter_block_->size,
                                              .free = iter_block_->free}
                : MemorySpace::AllocationInfo{};
