@@ -55,7 +55,7 @@ const MemorySpaceBlockMatcher g_free_block_matcher{&IsSuitableForAllocation};
 }  // namespace
 
 MemorySpace::MemorySpace(const Pointer<void>& mem, size_t size, SynchronizationType sync_type)
-    : kTypeCheckValue{kMemorySpaceCheckTypeId}, sync_{sync_type}, mem_manip_{mem, size},
+    : sync_{sync_type}, kTypeCheckValue{kMemorySpaceCheckTypeId}, mem_manip_{mem, size},
       curr_block_{&mem_manip_.GetFirstBlock()}
 {
 }

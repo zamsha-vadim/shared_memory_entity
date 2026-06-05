@@ -9,12 +9,12 @@
 
 namespace sme {
 
-class SME_EXPORT AdaptiveSpinLock {
+class SME_EXPORT AdaptiveSpinLock final {
    public:
     enum class Type { kAdaptive, kSpinOnly };
 
    public:
-    AdaptiveSpinLock(Type type = Type::kAdaptive);
+    explicit AdaptiveSpinLock(Type type = Type::kAdaptive);
 
     AdaptiveSpinLock(const AdaptiveSpinLock&) = delete;
     AdaptiveSpinLock(AdaptiveSpinLock&&) = delete;

@@ -116,9 +116,8 @@ class SME_EXPORT MemorySpace final {
         -> bool;
 
    private:
-    const uint64_t kTypeCheckValue;
-
     mutable Synchronizer sync_;
+    const uint64_t kTypeCheckValue;
     mutable MemorySpaceManipulator mem_manip_;
     Pointer<Block> curr_block_;
 };

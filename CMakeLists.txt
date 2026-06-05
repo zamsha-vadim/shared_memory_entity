@@ -216,7 +216,6 @@ set(sme_public_headers
     ${INCLUDE_DIR}/shm.h
     ${INCLUDE_DIR}/mapped_obj.h
 
-    ${INCLUDE_DIR}/sync_type.h
     ${INCLUDE_DIR}/msg_channel.h
 )
 

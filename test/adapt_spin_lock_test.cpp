@@ -23,7 +23,7 @@ const auto g_cpu_number = get_nprocs();
 enum class ActionType : uint8_t { kWait, kReady, kExit };
 
 struct WorkStruct {
-    sme::AdaptiveSpinLock spin_lock;//{sme::AdaptiveSpinLock::Type::kSpinOnly};
+    sme::AdaptiveSpinLock spin_lock{};
     std::atomic<ActionType> ready{ActionType::kWait};
 };
 

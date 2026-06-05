@@ -66,7 +66,7 @@ void ConditionVariable::Wait(std::unique_lock<Mutex>& mutex_lock) {
     auto err_code =
         TEMP_FAILURE_RETRY(pthread_cond_wait(&cond_var_, &mutex->GetNativeObject()));
     if (err_code != 0)
-        throw std::system_error(err_code, std::generic_category(),
+        throw std::system_error(static_cast<int>(err_code), std::generic_category(),
                                 "Can't wait on condition variable");
 }
 
@@ -85,7 +85,7 @@ auto ConditionVariable::WaitFor(std::unique_lock<Mutex>& mutex_lock,
     if (err_code == ETIMEDOUT)
         return false;
 
-    throw std::system_error(err_code, std::generic_category(),
+    throw std::system_error(static_cast<int>(err_code), std::generic_category(),
                             "Can't wait on condition variable");
 }
 

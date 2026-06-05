@@ -16,6 +16,11 @@ namespace sme {
 
 namespace {
 
+struct TimeSpan {
+    uint64_t begin{};
+    uint64_t end{};
+};
+
 const unsigned int kCpuNumber{static_cast<unsigned int>(get_nprocs())};
 constexpr uint64_t kNanosecondsPerSec{1'000'000'000UL};
 
@@ -39,7 +44,7 @@ constexpr uint64_t kNanosecondsPerSec{1'000'000'000UL};
 [[maybe_unused]] inline auto GetCpuCycles() noexcept -> uint64_t
 {
 #if defined(__x86_64__)
-    unsigned int cpu;
+    unsigned int cpu{};
     return __rdtscp(&cpu); 
 #elif defined(__aarch64__)
     uint64_t counter;
@@ -64,13 +69,13 @@ auto GetTimestamp() noexcept -> uint64_t
 #endif    
 }
 
-auto CalculateAverageTimeSpan(uint64_t begin_time,
-                              uint64_t end_time,
-                              uint64_t prev_avg_time_span) noexcept -> uint64_t
+auto CalculateAverageTimeSpan(const TimeSpan& time_span, uint64_t prev_avg_time_span) noexcept
+    -> uint64_t
 {
-    auto curr_span = (end_time > begin_time) ? (end_time - begin_time) : 0;
+    auto curr_span = (time_span.end > time_span.begin) ? (time_span.end - time_span.begin) : 0;
     if (prev_avg_time_span == 0)
         prev_avg_time_span = curr_span;
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
     return (prev_avg_time_span * 15 + curr_span) / 16;
 }
 
@@ -79,7 +84,7 @@ void LockFutex(pid_t curr_tid, std::atomic<FutexValueType>& sync_var)
     auto owner_tid = sync_var.load(std::memory_order_acquire);
 
     for (;;) {
-        PiFutexResult res = LockPiFutex(sync_var);
+        const PiFutexResult res = LockPiFutex(sync_var);
 
         if (res == PiFutexResult::kCompleted) {
             if (IsPiFutexOwnerDied(sync_var))
@@ -115,6 +120,8 @@ AdaptiveSpinLock::~AdaptiveSpinLock()
               << ", MAX_ACQ_TIME=" << max_acq_time_ << ", LOCKS=" << lock_count_
               << ", RESCHED=" << resched_count_ << std::endl;
 }
+
+// NOLINTBEGIN(readability-function-cognitive-complexity)
 
 void AdaptiveSpinLock::lock()
 {
@@ -200,6 +207,8 @@ void AdaptiveSpinLock::lock()
     std::atomic_thread_fence(std::memory_order_acq_rel);
 }
 
+// NOLINTEND(readability-function-cognitive-complexity)
+
 void AdaptiveSpinLock::unlock()
 {
     if (type_ == Type::kAdaptive && concur_wait_num_ != 0)
@@ -230,7 +239,7 @@ void AdaptiveSpinLock::UpdateAvarageAcquiringTime(uint64_t begin_acq_time) noexc
 
     auto last_acq_time = avg_acq_time_.load(std::memory_order_acquire);
     auto updated_acq_time =
-        CalculateAverageTimeSpan(begin_acq_time, curr_time, last_acq_time);
+        CalculateAverageTimeSpan({begin_acq_time, curr_time}, last_acq_time);
     avg_acq_time_.store(updated_acq_time, std::memory_order_relaxed);
 
     auto curr_acq_time = curr_time - begin_acq_time;
@@ -247,7 +256,7 @@ void AdaptiveSpinLock::UpdateAvarageExecutionTime() noexcept
 {
     auto last_avg_time = avg_exec_time_.load(std::memory_order_acquire);
     auto updated_avg_time =
-        CalculateAverageTimeSpan(begin_timestamp_, GetTimestamp(), last_avg_time);
+        CalculateAverageTimeSpan({begin_timestamp_, GetTimestamp()}, last_avg_time);
 
     avg_exec_time_.store(updated_avg_time, std::memory_order_release);
 }
