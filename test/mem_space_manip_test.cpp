@@ -29,8 +29,7 @@ auto IsBlockSizeAligned(sme::MemorySpaceBlock::Size size) noexcept -> bool
 
 TEST(MemorySpaceManipulatorTest, TestValidConstructor)
 {
-    sme::MemorySpaceManipulator manip{sme::Pointer{some_memory.data()},
-                                      some_memory.size()};
+    sme::MemorySpaceManipulator manip{sme::Pointer{some_memory.data()}, some_memory.size()};
 
     EXPECT_LE(manip.GetCapacity(), some_memory.size());
     EXPECT_TRUE(IsBlockSizeAligned(manip.GetCapacity()));
@@ -38,8 +37,7 @@ TEST(MemorySpaceManipulatorTest, TestValidConstructor)
 
 TEST(MemorySpaceManipulatorTest, TestConstructorForSmallestValidSize)
 {
-    alignas(
-        sme::kMemorySpaceBlockAlign) char mem[sme::MemorySpaceBlock::GetMinBlockSize()];
+    alignas(sme::kMemorySpaceBlockAlign) char mem[sme::MemorySpaceBlock::GetMinBlockSize()];
 
     EXPECT_NO_THROW((sme::MemorySpaceManipulator{sme::Pointer{mem},
                                                  sme::MemorySpaceBlock::GetMinBlockSize()}));
@@ -69,8 +67,7 @@ TEST(MemorySpaceManipulatorTest, TestConstructorForNotAlignedMemory)
 
     sme::MemorySpaceManipulator manip{sme::Pointer{not_aligned_addr}, size};
 
-    EXPECT_EQ(
-        static_cast<uintptr_t>(manip.GetBaseAddress()) % sme::kMemorySpaceBlockAlign, 0);
+    EXPECT_EQ(static_cast<uintptr_t>(manip.GetBaseAddress()) % sme::kMemorySpaceBlockAlign, 0);
     EXPECT_TRUE(IsBlockSizeAligned(manip.GetCapacity()));
 }
 
@@ -382,13 +379,13 @@ TEST(MemorySpaceManipulatorTest, TestFindFirstFreeBlock)
     block3.free = true;
     block4.free = false;
 
-    auto* found_block = manip.FindFreeBlock(block1, size1, sme::IsSuitableForAllocation);
+    auto* found_block = manip.FindFreeBlock(block1, size1, 1, sme::IsSuitableForAllocation);
     ASSERT_EQ(&block1, found_block);
 
-    found_block = manip.FindFreeBlock(block3, size1, sme::IsSuitableForAllocation);
+    found_block = manip.FindFreeBlock(block3, size1, 1, sme::IsSuitableForAllocation);
     ASSERT_EQ(&block1, found_block);
 
-    found_block = manip.FindFreeBlock(block4, size1, sme::IsSuitableForAllocation);
+    found_block = manip.FindFreeBlock(block4, size1, 1, sme::IsSuitableForAllocation);
     ASSERT_EQ(&block1, found_block);
 }
 
@@ -411,16 +408,16 @@ TEST(MemorySpaceManipulatorTest, TestFindInnerFreeBlock)
     block3.free = true;
     block4.free = false;
 
-    auto* found_block = manip.FindFreeBlock(block1, size1, sme::IsSuitableForAllocation);
+    auto* found_block = manip.FindFreeBlock(block1, size1, 1, sme::IsSuitableForAllocation);
     ASSERT_EQ(&block2, found_block);
 
-    found_block = manip.FindFreeBlock(block1, size3, sme::IsSuitableForAllocation);
+    found_block = manip.FindFreeBlock(block1, size3, 1, sme::IsSuitableForAllocation);
     ASSERT_EQ(&block2, found_block);
 
-    found_block = manip.FindFreeBlock(block3, size3, sme::IsSuitableForAllocation, true);
+    found_block = manip.FindFreeBlock(block3, size3, 1, sme::IsSuitableForAllocation, true);
     ASSERT_EQ(&block2, found_block);
 
-    found_block = manip.FindFreeBlock(block4, size3, sme::IsSuitableForAllocation);
+    found_block = manip.FindFreeBlock(block4, size3, 1, sme::IsSuitableForAllocation);
     ASSERT_EQ(&block2, found_block);
 }
 
@@ -433,8 +430,7 @@ TEST(MemorySpaceManipulatorTest, TestFindUnitedInnerFreeBlock)
     auto size2 = sme::MemorySpaceBlock::CalculateBlockSize(some_alloc_size * 2);
     auto size3 = sme::MemorySpaceBlock::CalculateBlockSize(some_alloc_size / 2);
     auto size4 = sme::MemorySpaceBlock::CalculateBlockSize(some_alloc_size * 3);
-    auto size5 =
-        sme::MemorySpaceBlock::CalculateBlockSize(some_alloc_size / 2 + 102 + 10);
+    auto size5 = sme::MemorySpaceBlock::CalculateBlockSize(some_alloc_size / 2 + 102 + 10);
 
     auto& block1 = manip.GetFirstBlock();
     auto& block2 = manip.SplitBlock(block1, size1);
@@ -451,17 +447,17 @@ TEST(MemorySpaceManipulatorTest, TestFindUnitedInnerFreeBlock)
     block6.free = false;
 
     auto* found_block =
-        manip.FindFreeBlock(block1, size3, sme::IsSuitableForAllocation, true);
+        manip.FindFreeBlock(block1, size3, 1, sme::IsSuitableForAllocation, true);
 
     ASSERT_TRUE(found_block != nullptr);
     ASSERT_TRUE(sme::IsSameBlock(block3, *found_block));
     ASSERT_TRUE(sme::IsSameBlock(block6, manip.GetNextBlock(*found_block)));
 
-    found_block = manip.FindFreeBlock(block1, found_block->size,
-                                      sme::IsSuitableForAllocation, true);
+    found_block =
+        manip.FindFreeBlock(block1, found_block->size, 1, sme::IsSuitableForAllocation, true);
     ASSERT_TRUE(sme::IsSameBlock(block3, *found_block));
 
-    found_block = manip.FindFreeBlock(block1, size2 + size3 + size4 + size5,
+    found_block = manip.FindFreeBlock(block1, size2 + size3 + size4 + size5, 1,
                                       sme::IsSuitableForAllocation, true);
     ASSERT_TRUE(found_block == nullptr);
 }
@@ -473,7 +469,7 @@ TEST(MemorySpaceManipulatorTest, TestFindForMaximumSize)
     size_t max_alloc_size{manip.GetCapacity() - sme::MemorySpaceBlock::GetMinBlockSize()};
     auto max_size = sme::MemorySpaceBlock::CalculateBlockSize(max_alloc_size);
 
-    auto* found_block = manip.FindFreeBlock(manip.GetFirstBlock(), max_size,
-                                            sme::IsSuitableForAllocation);
+    auto* found_block =
+        manip.FindFreeBlock(manip.GetFirstBlock(), max_size, 1, sme::IsSuitableForAllocation);
     EXPECT_TRUE(found_block != nullptr);
 }

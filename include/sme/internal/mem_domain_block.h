@@ -17,7 +17,7 @@ constexpr auto kMemoryDomainBlockAlign{alignof(std::max_align_t)};
 class alignas(kMemoryDomainBlockAlign) MemoryDomainBlock {
    public:
     using Size = uint32_t;
-    using Offset = int32_t;
+    using Position = uint32_t;
 
     enum class Type : uint8_t { kInvalid, kFreeSmall, kFreeGeneric, kUsed, kRedZone };
 
@@ -70,7 +70,6 @@ class alignas(kMemoryDomainBlockAlign) MemoryDomainBlock {
 class alignas(kMemoryDomainBlockAlign) MemoryDomainUseBlock : public MemoryDomainBlock {
    public:
     constexpr static auto kDataAlign{alignof(std::max_align_t)};
-
     constexpr static Size kDataSizeStep{kDataAlign > 16 ? kDataAlign : 16};
 
    public:
@@ -110,16 +109,13 @@ class alignas(kMemoryDomainBlockAlign) MemoryDomainFreeBlock : public MemoryDoma
 
     void UnlinkFreeBlockRelations() noexcept;
 
-    auto CanBeSplittedForUse(MemoryDomainBlock::Size used_block_size) const noexcept
-        -> bool;
+    auto CanBeSplittedForUseBlock(Size block_size, Size mem_align) const noexcept
+        -> std::pair<bool, Position>;
+    auto CanBeSplittedForUseBlock(Size block_size) const noexcept -> bool;
 
    protected:
     using MemoryDomainBlock::MemoryDomainBlock;
     ~MemoryDomainFreeBlock();
-
-    static auto CanBeSplittedForUse(MemoryDomainBlock::Size free_block_size,
-                                    MemoryDomainBlock::Size used_block_size) noexcept
-        -> bool;
 
    private:
     Pointer<MemoryDomainFreeBlock> free_prev_block_;
@@ -218,7 +214,8 @@ class MemoryDomainFreeBlockPool {
     [[nodiscard]] auto ShrinkMemoryAreaFrom(Pointer<MemoryDomainRedZoneBlock>&) noexcept
         -> Pointer<MemoryDomainRedZoneBlock>;
 
-    [[nodiscard]] auto AllocateUseBlock(MemoryDomainBlock::Size data_size) noexcept
+    [[nodiscard]] auto AllocateUseBlock(MemoryDomainBlock::Size data_size,
+                                        MemoryDomainBlock::Size mem_align = 1) noexcept
         -> Pointer<MemoryDomainUseBlock>;
     void DeallocateUseBlock(Pointer<MemoryDomainUseBlock>& used_block) noexcept;
 
@@ -234,11 +231,13 @@ class MemoryDomainFreeBlockPool {
         -> Pointer<MemoryDomainUseBlock>;
 
     [[nodiscard]] auto AllocateUseBlockFromSuitableGenericBlock(
-        MemoryDomainBlock::Size block_size) noexcept -> Pointer<MemoryDomainUseBlock>;
+        MemoryDomainBlock::Size data_size,
+        MemoryDomainBlock::Size mem_align) noexcept -> Pointer<MemoryDomainUseBlock>;
 
     [[nodiscard]] auto AllocateUseBlockFromGenericBlock(
         MemoryDomainFreeGenericBlock& src_block,
-        MemoryDomainBlock::Size block_size) noexcept -> Pointer<MemoryDomainUseBlock>;
+        MemoryDomainBlock::Size data_size,
+        MemoryDomainBlock::Position block_ofs) noexcept -> Pointer<MemoryDomainUseBlock>;
 
     [[nodiscard]] auto AllocateFreeBlock(void* mem,
                                          MemoryDomainBlock::Size block_size,
@@ -261,9 +260,9 @@ class MemoryDomainFreeBlockPool {
     void DestroyBlock(MemoryDomainFreeGenericBlock& block) noexcept;
     void DestroyBlock(MemoryDomainUseBlock& block) noexcept;
 
-    [[nodiscard]] auto FindSuitableFreeGenericBlock(
-        MemoryDomainBlock::Size block_size) noexcept
-        -> Pointer<MemoryDomainFreeGenericBlock>;
+    [[nodiscard]] auto FindSuitableFreeGenericBlock(MemoryDomainBlock::Size block_size,
+                                                    MemoryDomainBlock::Size mem_align) noexcept
+        -> std::pair<MemoryDomainFreeGenericBlock*, MemoryDomainBlock::Position>;
 
     void LinkFreeSmallBlock(MemoryDomainFreeSmallBlock& new_block) noexcept;
     void UnlinkFreeSmallBlock(MemoryDomainFreeSmallBlock& block) noexcept;

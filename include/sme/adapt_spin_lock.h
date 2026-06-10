@@ -48,8 +48,8 @@ class SME_EXPORT AdaptiveSpinLock final {
     std::atomic<uint64_t> lock_count_{0};
     std::atomic<uint64_t> resched_count_{0};
 
-    unsigned int concur_wait_num_{};
-    Type type_{};
+    const unsigned int concur_wait_num_{};
+    const Type type_{};
 };
 
 }  // namespace sme

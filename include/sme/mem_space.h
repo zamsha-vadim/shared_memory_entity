@@ -41,8 +41,9 @@ class SME_EXPORT MemorySpace final {
     [[nodiscard]] auto GetBaseAddress() const noexcept -> Pointer<void>;
     [[nodiscard]] auto GetCapacity() const noexcept -> size_t;
 
-    [[nodiscard]] auto Allocate(size_t size) -> Pointer<void>;
-    [[nodiscard]] auto AllocateAtLeast(size_t size) -> std::pair<Pointer<void>, size_t>;
+    [[nodiscard]] auto Allocate(size_t size, size_t mem_align = 1) -> Pointer<void>;
+    [[nodiscard]] auto AllocateAtLeast(size_t size, size_t mem_align = 1)
+        -> std::pair<Pointer<void>, size_t>;
     [[nodiscard]] auto Resize(Pointer<void> ptr, size_t new_size) -> bool;
 
     auto Deallocate(Pointer<void>& ptr) noexcept -> bool;
@@ -116,8 +117,8 @@ class SME_EXPORT MemorySpace final {
         -> bool;
 
    private:
-    mutable Synchronizer sync_;
     const uint64_t kTypeCheckValue;
+    mutable Synchronizer sync_;
     mutable MemorySpaceManipulator mem_manip_;
     Pointer<Block> curr_block_;
 };

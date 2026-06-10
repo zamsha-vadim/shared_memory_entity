@@ -35,6 +35,23 @@ namespace {
 
 }  // namespace
 
+auto IsSuitableForAllocation(const MemorySpaceBlock& block,
+                             MemorySpaceBlock::Size block_size,
+                             size_t mem_align) noexcept -> bool
+{
+    bool suitable = (block.free && block_size <= block.size);
+    if (!suitable)
+        return false;
+
+    if (mem_align > 1) {
+        suitable = ((reinterpret_cast<uintptr_t>(block.data) % mem_align) == 0);
+    }
+
+    return suitable;
+}
+
+// class MemorySpaceManipulator
+
 MemorySpaceManipulator::MemorySpaceManipulator(const Pointer<void>& mem,
                                                size_t size,
                                                bool zeroed)
@@ -247,6 +264,7 @@ auto MemorySpaceManipulator::IsLocationValid(const Block& block) const noexcept 
 
 auto MemorySpaceManipulator::FindFreeBlock(Block& start_block,
                                            Size block_size,
+                                           size_t mem_align,
                                            const MemorySpaceBlockMatcher& matcher,
                                            bool unite_free) noexcept -> Block*
 {
@@ -272,7 +290,7 @@ auto MemorySpaceManipulator::FindFreeBlock(Block& start_block,
                 assert(iter_block != nullptr);
             }
 
-            if (iter_block->free && matcher(*iter_block, block_size))
+            if (iter_block->free && matcher(*iter_block, block_size, mem_align))
                 return iter_block;
         }
 

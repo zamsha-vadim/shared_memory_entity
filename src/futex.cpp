@@ -5,10 +5,9 @@
 #include <sys/time.h>
 #include <unistd.h>
 
-#include <stdatomic.h>
+#include <iostream>
 #include <system_error>
 #include <utility>
-#include <iostream>
 
 #include "sme/internal/util.h"
 

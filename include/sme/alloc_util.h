@@ -40,7 +40,7 @@ template <typename T, typename MemoryAreaType, typename... Arg>
                   "MemoryAreaType template argument must have method \"Pointer<void> "
                   "Allocate(size_t data_size)\"");
 
-    auto mem = mem_area.Allocate(sizeof(T));
+    auto mem = mem_area.Allocate(sizeof(T), alignof(T));
     if (mem == nullptr)
         return nullptr;
 

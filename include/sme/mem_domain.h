@@ -47,7 +47,7 @@ class SME_EXPORT MemoryDomain {
 
     [[nodiscard]] auto GetMemorySpace() const noexcept -> MemorySpace&;
 
-    [[nodiscard]] auto Allocate(size_t data_size) -> Pointer<void>;
+    [[nodiscard]] auto Allocate(size_t data_size, size_t mem_align = 1) -> Pointer<void>;
     void Deallocate(Pointer<void>& ptr) noexcept;
     void Deallocate(Pointer<void>&& ptr) noexcept;
 
@@ -64,7 +64,8 @@ class SME_EXPORT MemoryDomain {
     static auto IsValidObjectId(const MemoryDomain& obj) noexcept -> bool;
 
    private:
-    [[nodiscard]] auto AllocateBlock(Size data_size) -> Pointer<MemoryDomainUseBlock>;
+    [[nodiscard]] auto AllocateBlock(Size data_size, Size mem_align)
+        -> Pointer<MemoryDomainUseBlock>;
     auto AddFreeMemory(Size data_size) -> bool;
 
     [[nodiscard]] auto AllocateSegment(size_t data_size) -> Pointer<MemoryDomainSegment>;

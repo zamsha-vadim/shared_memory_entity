@@ -55,7 +55,7 @@ const MemorySpaceBlockMatcher g_free_block_matcher{&IsSuitableForAllocation};
 }  // namespace
 
 MemorySpace::MemorySpace(const Pointer<void>& mem, size_t size, SynchronizationType sync_type)
-    : sync_{sync_type}, kTypeCheckValue{kMemorySpaceCheckTypeId}, mem_manip_{mem, size},
+    : kTypeCheckValue{kMemorySpaceCheckTypeId}, sync_{sync_type}, mem_manip_{mem, size},
       curr_block_{&mem_manip_.GetFirstBlock()}
 {
 }
@@ -80,7 +80,7 @@ auto MemorySpace::GetCapacity() const noexcept -> size_t
     return mem_manip_.GetCapacity();
 }
 
-auto MemorySpace::Allocate(size_t size) -> Pointer<void>
+auto MemorySpace::Allocate(size_t size, size_t mem_align) -> Pointer<void>
 {
     CheckSizeForZero(size);
 
@@ -89,7 +89,8 @@ auto MemorySpace::Allocate(size_t size) -> Pointer<void>
 
     std::lock_guard lg{sync_};
 
-    Block* suitable_block = mem_manip_.FindFreeBlock(*curr_block_, block_size, matcher, true);
+    Block* suitable_block =
+        mem_manip_.FindFreeBlock(*curr_block_, block_size, mem_align, matcher, true);
     if (suitable_block == nullptr)
         return {};
 
@@ -105,7 +106,8 @@ auto MemorySpace::Allocate(size_t size) -> Pointer<void>
     return Pointer<void>{suitable_block->data};
 }
 
-auto MemorySpace::AllocateAtLeast(size_t size) -> std::pair<Pointer<void>, size_t>
+auto MemorySpace::AllocateAtLeast(size_t size, size_t mem_align)
+    -> std::pair<Pointer<void>, size_t>
 {
     CheckSizeForZero(size);
 
@@ -114,7 +116,8 @@ auto MemorySpace::AllocateAtLeast(size_t size) -> std::pair<Pointer<void>, size_
 
     std::lock_guard lg{sync_};
 
-    Block* suitable_block = mem_manip_.FindFreeBlock(*curr_block_, block_size, matcher, true);
+    Block* suitable_block =
+        mem_manip_.FindFreeBlock(*curr_block_, block_size, mem_align, matcher, true);
     if (suitable_block == nullptr)
         return {};
 

@@ -15,20 +15,13 @@ class alignas(sme::kMemoryDomainBlockAlign) SomeMemory {
 
     auto GetCapacity() const noexcept -> size_t { return capacity_; }
 
-    auto GetBaseAddress() const noexcept -> sme::Pointer<const void>
-    {
-        return {mem_.data()};
-    }
+    auto GetBaseAddress() const noexcept -> sme::Pointer<const void> { return {mem_.data()}; }
 
-    auto GetBaseAddress() noexcept -> sme::Pointer<void>
-    {
-        return {mem_.data()};
-    }
+    auto GetBaseAddress() noexcept -> sme::Pointer<void> { return {mem_.data()}; }
 
    private:
     size_t capacity_{};
-    alignas(
-        sme::MemoryDomainUseBlock::kDataAlign) std::array<char, kSomeSpaceSize> mem_{};
+    alignas(sme::MemoryDomainUseBlock::kDataAlign) std::array<char, kSomeSpaceSize> mem_{};
 };
 
 [[maybe_unused]] auto CreateTestMemory(size_t capacity = kSomeSpaceSize) -> SomeMemory
@@ -145,14 +138,13 @@ TEST(MemoryDomainBlockTest, TestUseBlockData)
     auto block = new (mem_ptr.GetAddress()) sme::MemoryDomainUseBlock{some_block_size};
 
     EXPECT_GT(block->GetDataSize(), 0);
-    EXPECT_LE(block->GetDataSize(),
-              block->GetBlockSize() - sizeof(sme::MemoryDomainUseBlock));
+    EXPECT_LE(block->GetDataSize(), block->GetBlockSize() - sizeof(sme::MemoryDomainUseBlock));
     EXPECT_EQ(block->GetDataSize() % sme::MemoryDomainUseBlock::kDataAlign, 0);
 
     ASSERT_NE(block->GetData(), nullptr);
-    EXPECT_EQ(reinterpret_cast<uintptr_t>(block->GetData()) %
-                  sme::MemoryDomainUseBlock::kDataAlign,
-              0);
+    EXPECT_EQ(
+        reinterpret_cast<uintptr_t>(block->GetData()) % sme::MemoryDomainUseBlock::kDataAlign,
+        0);
 }
 
 TEST(MemoryDomainBlockTest, TestFreeSmallBlockConstructor)
@@ -249,8 +241,7 @@ TEST(MemoryDomainBlockTest, TestBlockIteration)
 TEST(MemoryDomainBlockTest, TestCalculateInitialFreeBlockSize)
 {
     auto mem_size{0u};
-    auto block_size =
-        sme::MemoryDomainFreeBlockPool::CalculateInitialFreeBlockSize(mem_size);
+    auto block_size = sme::MemoryDomainFreeBlockPool::CalculateInitialFreeBlockSize(mem_size);
     EXPECT_EQ(block_size, 0);
 
     mem_size = 1;
@@ -290,50 +281,49 @@ TEST(MemoryDomainBlockTest, TestFreeBlockSplittable)
     sme::Pointer<char> mem_ptr = mem_realm.GetBaseAddress();
 
     auto free_block_size{sme::MemoryDomainBlock::GetMinimumBlockSize()};
+    auto block = new (mem_ptr.GetAddress()) sme::MemoryDomainFreeGenericBlock{free_block_size};
 
-    auto block = new (mem_ptr.GetAddress())
-        sme::MemoryDomainFreeGenericBlock{free_block_size};
-    EXPECT_FALSE(block->CanBeSplittedForUse(0));
+    EXPECT_FALSE(block->CanBeSplittedForUseBlock(0));
     EXPECT_TRUE(
-        block->CanBeSplittedForUse(sme::MemoryDomainBlock::GetMinimumBlockSize()));
+        block->CanBeSplittedForUseBlock(sme::MemoryDomainBlock::GetMinimumBlockSize()));
     EXPECT_FALSE(
-        block->CanBeSplittedForUse(sme::MemoryDomainBlock::GetMinimumBlockSize() + 1));
+        block->CanBeSplittedForUseBlock(sme::MemoryDomainBlock::GetMinimumBlockSize() + 1));
     block->~MemoryDomainFreeGenericBlock();
 
     free_block_size = sme::MemoryDomainBlock::GetMinimumBlockSize() * 2;
-
     block = new (mem_ptr.GetAddress()) sme::MemoryDomainFreeGenericBlock{free_block_size};
+
+    EXPECT_FALSE(
+        block->CanBeSplittedForUseBlock(sme::MemoryDomainBlock::GetMinimumBlockSize() - 1));
     EXPECT_TRUE(
-        block->CanBeSplittedForUse(sme::MemoryDomainBlock::GetMinimumBlockSize() - 1));
+        block->CanBeSplittedForUseBlock(sme::MemoryDomainBlock::GetMinimumBlockSize()));
+    EXPECT_FALSE(
+        block->CanBeSplittedForUseBlock(sme::MemoryDomainBlock::GetMinimumBlockSize() +
+                                        sme::MemoryDomainUseBlock::GetMinimumDataSize()));
     EXPECT_TRUE(
-        block->CanBeSplittedForUse(sme::MemoryDomainBlock::GetMinimumBlockSize()));
-    EXPECT_TRUE(
-        block->CanBeSplittedForUse(sme::MemoryDomainBlock::GetMinimumBlockSize() +
-                                   sme::MemoryDomainUseBlock::GetMinimumDataSize()));
-    EXPECT_TRUE(
-        block->CanBeSplittedForUse(sme::MemoryDomainBlock::GetMinimumBlockSize() * 2));
-    EXPECT_FALSE(block->CanBeSplittedForUse(
+        block->CanBeSplittedForUseBlock(sme::MemoryDomainBlock::GetMinimumBlockSize() * 2));
+    EXPECT_FALSE(block->CanBeSplittedForUseBlock(
         sme::MemoryDomainBlock::GetMinimumBlockSize() * 2 + 1));
-    EXPECT_FALSE(block->CanBeSplittedForUse(
+    EXPECT_FALSE(block->CanBeSplittedForUseBlock(
         sme::MemoryDomainBlock::GetMinimumBlockSize() * 3 - 1));
     EXPECT_FALSE(
-        block->CanBeSplittedForUse(sme::MemoryDomainBlock::GetMinimumBlockSize() * 3));
+        block->CanBeSplittedForUseBlock(sme::MemoryDomainBlock::GetMinimumBlockSize() * 3));
     block->~MemoryDomainFreeGenericBlock();
 
     free_block_size = sme::MemoryDomainBlock::GetMinimumBlockSize() * 3;
-
     block = new (mem_ptr.GetAddress()) sme::MemoryDomainFreeGenericBlock{free_block_size};
+    
     EXPECT_TRUE(
-        block->CanBeSplittedForUse(sme::MemoryDomainBlock::GetMinimumBlockSize()));
+        block->CanBeSplittedForUseBlock(sme::MemoryDomainBlock::GetMinimumBlockSize()));
     EXPECT_TRUE(
-        block->CanBeSplittedForUse(sme::MemoryDomainBlock::GetMinimumBlockSize() * 2));
+        block->CanBeSplittedForUseBlock(sme::MemoryDomainBlock::GetMinimumBlockSize() * 2));
     EXPECT_TRUE(
-        block->CanBeSplittedForUse(sme::MemoryDomainBlock::GetMinimumBlockSize() * 3));
-    EXPECT_FALSE(block->CanBeSplittedForUse(
+        block->CanBeSplittedForUseBlock(sme::MemoryDomainBlock::GetMinimumBlockSize() * 3));
+    EXPECT_FALSE(block->CanBeSplittedForUseBlock(
         sme::MemoryDomainBlock::GetMinimumBlockSize() * 3 + 1));
     EXPECT_FALSE(
-        block->CanBeSplittedForUse(sme::MemoryDomainBlock::GetMinimumBlockSize() * 4));
-    EXPECT_FALSE(block->CanBeSplittedForUse(
+        block->CanBeSplittedForUseBlock(sme::MemoryDomainBlock::GetMinimumBlockSize() * 4));
+    EXPECT_FALSE(block->CanBeSplittedForUseBlock(
         sme::MemoryDomainBlock::GetMinimumBlockSize() * 4 - 1));
     block->~MemoryDomainFreeGenericBlock();
 }
@@ -371,16 +361,15 @@ TEST(MemoryDomainBlockPoolTest, AddLessSizeOfFreeMemory)
 
     auto greater_mem_size = mem_realm.GetCapacity() / 2;
     sme::Pointer<sme::MemoryDomainFreeGenericBlock> greater_block;
-    std::tie(greater_block, std::ignore) =
-        mp.AddFreeMemoryArea(mem_ptr, greater_mem_size);
+    std::tie(greater_block, std::ignore) = mp.AddFreeMemoryArea(mem_ptr, greater_mem_size);
 
     ASSERT_EQ(mp.GetFirstFreeGenericBlock(), greater_block);
     EXPECT_EQ(mp.GetFirstFreeSmallBlock(), nullptr);
 
     auto less_mem_size = greater_block->GetBlockSize() / 2;
     sme::Pointer<sme::MemoryDomainFreeGenericBlock> less_block;
-    std::tie(less_block, std::ignore) = mp.AddFreeMemoryArea(
-        MoveNext(mem_ptr, greater_block->GetBlockSize()), less_mem_size);
+    std::tie(less_block, std::ignore) =
+        mp.AddFreeMemoryArea(MoveNext(mem_ptr, greater_block->GetBlockSize()), less_mem_size);
 
     ASSERT_EQ(mp.GetFirstFreeGenericBlock(), less_block);
     EXPECT_EQ(mp.GetFirstFreeSmallBlock(), nullptr);
@@ -412,8 +401,8 @@ TEST(MemoryDomainBlockPoolTest, AddGreaterSizeOfFreeMemory)
 
     auto greater_mem_size = mem_realm.GetCapacity() / 3;
     sme::Pointer<sme::MemoryDomainFreeGenericBlock> greater_block;
-    std::tie(greater_block, std::ignore) = mp.AddFreeMemoryArea(
-        MoveNext(mem_ptr, less_block->GetBlockSize()), greater_mem_size);
+    std::tie(greater_block, std::ignore) =
+        mp.AddFreeMemoryArea(MoveNext(mem_ptr, less_block->GetBlockSize()), greater_mem_size);
 
     ASSERT_EQ(mp.GetFirstFreeGenericBlock(), less_block);
     EXPECT_EQ(mp.GetFirstFreeSmallBlock(), nullptr);
@@ -443,14 +432,12 @@ TEST(MemoryDomainBlockPoolTest, AddMiddleSizeOfFreeMemory)
     auto middle_mem_size = mem_realm.GetCapacity() / 4;
     auto middle_mem = MoveNext(mem_ptr, less_block->GetBlockSize());
     sme::Pointer<sme::MemoryDomainFreeGenericBlock> middle_block;
-    std::tie(middle_block, std::ignore) =
-        mp.AddFreeMemoryArea(middle_mem, middle_mem_size);
+    std::tie(middle_block, std::ignore) = mp.AddFreeMemoryArea(middle_mem, middle_mem_size);
 
     auto greater_mem_size = mem_realm.GetCapacity() / 2;
     auto greater_mem = MoveNext(mem_ptr, middle_block->GetBlockSize());
     sme::Pointer<sme::MemoryDomainFreeGenericBlock> greater_block;
-    std::tie(greater_block, std::ignore) =
-        mp.AddFreeMemoryArea(greater_mem, greater_mem_size);
+    std::tie(greater_block, std::ignore) = mp.AddFreeMemoryArea(greater_mem, greater_mem_size);
 
     ASSERT_EQ(mp.GetFirstFreeGenericBlock(), less_block);
     EXPECT_EQ(mp.GetFirstFreeSmallBlock(), nullptr);
@@ -485,19 +472,16 @@ TEST(MemoryDomainBlockPoolTest, AddEqualSizeOfFreeMemory)
     auto middle_mem_size = mem_realm.GetCapacity() / 8;
     auto middle_mem1 = MoveNext(mem_ptr, less_block->GetBlockSize());
     sme::Pointer<sme::MemoryDomainFreeGenericBlock> middle_block1;
-    std::tie(middle_block1, std::ignore) =
-        mp.AddFreeMemoryArea(middle_mem1, middle_mem_size);
+    std::tie(middle_block1, std::ignore) = mp.AddFreeMemoryArea(middle_mem1, middle_mem_size);
 
     auto greater_mem_size = mem_realm.GetCapacity() / 2;
     auto greater_mem = MoveNext(mem_ptr, middle_block1->GetBlockSize());
     sme::Pointer<sme::MemoryDomainFreeGenericBlock> greater_block;
-    std::tie(greater_block, std::ignore) =
-        mp.AddFreeMemoryArea(greater_mem, greater_mem_size);
+    std::tie(greater_block, std::ignore) = mp.AddFreeMemoryArea(greater_mem, greater_mem_size);
 
     auto middle_mem2 = MoveNext(mem_ptr, greater_block->GetBlockSize());
     sme::Pointer<sme::MemoryDomainFreeGenericBlock> middle_block2;
-    std::tie(middle_block2, std::ignore) =
-        mp.AddFreeMemoryArea(middle_mem2, middle_mem_size);
+    std::tie(middle_block2, std::ignore) = mp.AddFreeMemoryArea(middle_mem2, middle_mem_size);
 
     ASSERT_EQ(mp.GetFirstFreeGenericBlock(), less_block);
     EXPECT_EQ(mp.GetFirstFreeSmallBlock(), nullptr);
@@ -531,8 +515,7 @@ TEST(MemoryDomainBlockPoolTest, AddOneSmallSizeOfFreeMemory)
     sme::MemoryDomainFreeBlockPool mp;
 
     auto invalid_mem_size = sme::MemoryDomainSegment::GetMinimumDataCapacity() - 1;
-    auto [invalid_block, redzone_block0] =
-        mp.AddFreeMemoryArea(mem_ptr, invalid_mem_size);
+    auto [invalid_block, redzone_block0] = mp.AddFreeMemoryArea(mem_ptr, invalid_mem_size);
 
     ASSERT_TRUE(invalid_block == nullptr);
 
@@ -540,9 +523,8 @@ TEST(MemoryDomainBlockPoolTest, AddOneSmallSizeOfFreeMemory)
     auto [free_block, redzone_block] = mp.AddFreeMemoryArea(mem_ptr, min_mem_size);
 
     ASSERT_TRUE(free_block != nullptr);
-    ASSERT_EQ(
-        free_block->GetBlockSize(),
-        sme::MemoryDomainFreeBlockPool::CalculateInitialFreeBlockSize(min_mem_size));
+    ASSERT_EQ(free_block->GetBlockSize(),
+              sme::MemoryDomainFreeBlockPool::CalculateInitialFreeBlockSize(min_mem_size));
 
     EXPECT_EQ(mp.GetFirstFreeGenericBlock(), nullptr);
     EXPECT_EQ(mp.GetFirstFreeSmallBlock(), free_block);
@@ -608,8 +590,7 @@ TEST(MemoryDomainBlockPoolTest, AddMixedSizesFreeMemory)
     auto greater_mem_size = mem_realm.GetCapacity() / 2;
     auto greater_mem = MoveNext(mem_ptr, small_block->GetBlockSize());
     sme::Pointer<sme::MemoryDomainFreeGenericBlock> greater_block;
-    std::tie(greater_block, std::ignore) =
-        mp.AddFreeMemoryArea(greater_mem, greater_mem_size);
+    std::tie(greater_block, std::ignore) = mp.AddFreeMemoryArea(greater_mem, greater_mem_size);
 
     ASSERT_EQ(mp.GetFirstFreeGenericBlock(), less_block);
     EXPECT_EQ(mp.GetFirstFreeSmallBlock(), small_block);
@@ -728,8 +709,7 @@ TEST(MemoryDomainBlockPoolTest, ReallocateLastGenericBlockAtEnd)
 
     ASSERT_EQ(mp.GetFirstFreeSmallBlock(), nullptr);
 
-    last_used_block =
-        mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize() + 1);
+    last_used_block = mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize() + 1);
 
     ASSERT_TRUE(last_used_block != nullptr);
     ASSERT_FALSE(last_used_block->IsLastBlock());
@@ -884,8 +864,7 @@ TEST(MemoryDomainBlockPoolTest, ReallocateLastSmallBlockAtEnd)
 
     ASSERT_EQ(mp.GetFirstFreeGenericBlock(), nullptr);
 
-    last_used_block =
-        mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
+    last_used_block = mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
 
     ASSERT_TRUE(last_used_block != nullptr);
     ASSERT_FALSE(last_used_block->IsLastBlock());
@@ -1022,20 +1001,16 @@ TEST(MemoryDomainBlockPoolTest, AllocateAndDeallocateFirstFourSmallBlocks)
     auto [first_block, redzone_block0] = mp.AddFreeMemoryArea(mem_ptr, mem_size);
     auto first_block_size = first_block->GetBlockSize();
 
-    auto used_block1 =
-        mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
+    auto used_block1 = mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
     ASSERT_TRUE(used_block1 != nullptr);
 
-    auto used_block2 =
-        mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
+    auto used_block2 = mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
     ASSERT_TRUE(used_block2 != nullptr);
 
-    auto used_block3 =
-        mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
+    auto used_block3 = mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
     ASSERT_TRUE(used_block3 != nullptr);
 
-    auto used_block4 =
-        mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
+    auto used_block4 = mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
     ASSERT_TRUE(used_block4 != nullptr);
 
     mp.DeallocateUseBlock(used_block1);
@@ -1110,14 +1085,10 @@ TEST(MemoryDomainBlockPoolTest,
     auto generic_block = mp.AllocateUseBlock(generic_data_size);
     auto generic_block_size = generic_block->GetBlockSize();
 
-    auto small_block1 =
-        mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
-    auto small_block2 =
-        mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
-    auto small_block3 =
-        mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
-    auto small_block4 =
-        mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
+    auto small_block1 = mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
+    auto small_block2 = mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
+    auto small_block3 = mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
+    auto small_block4 = mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
 
     auto last_size =
         small_block4->GetBlockSize() + small_block4->GetNextBlock()->GetBlockSize();
@@ -1154,9 +1125,8 @@ TEST(MemoryDomainBlockPoolTest,
 
     ASSERT_TRUE(mp.GetFirstFreeSmallBlock() == nullptr);
     ASSERT_TRUE(mp.GetFirstFreeGenericBlock() == mem_ptr);
-    ASSERT_EQ(
-        mp.GetFirstFreeGenericBlock()->GetBlockSize(),
-        generic_block_size + (sme::MemoryDomainUseBlock::GetMinimumBlockSize() * 2));
+    ASSERT_EQ(mp.GetFirstFreeGenericBlock()->GetBlockSize(),
+              generic_block_size + (sme::MemoryDomainUseBlock::GetMinimumBlockSize() * 2));
     ASSERT_TRUE(mp.GetFirstFreeGenericBlock()->GetGreaterFreeBlock() != nullptr);
     ASSERT_TRUE(mp.GetFirstFreeGenericBlock() ==
                 mp.GetFirstFreeGenericBlock()->GetGreaterFreeBlock()->GetLessFreeBlock());
@@ -1184,20 +1154,17 @@ TEST(MemoryDomainBlockPoolTest, AllocateAndDeallocateGenericBlockInMiddle)
     auto gen_data_size1 = sme::MemoryDomainUseBlock::GetMinimumDataSize() * 5 + 1;
     (void)mp.AllocateUseBlock(gen_data_size1);
 
-    auto small_block1 =
-        mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
+    auto small_block1 = mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
 
     auto gen_data_size2 = sme::MemoryDomainUseBlock::GetMinimumDataSize() * 3;
     auto gen_block2 = mp.AllocateUseBlock(gen_data_size2);
 
-    auto small_block2 =
-        mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
+    auto small_block2 = mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
 
     auto gen_data_size3 = sme::MemoryDomainUseBlock::GetMinimumDataSize() * 3 + 1;
     (void)mp.AllocateUseBlock(gen_data_size3);
 
-    auto small_block3 =
-        mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
+    auto small_block3 = mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
 
     // ug1 us1 ug2 us2 ug3 us3 fg
 
@@ -1220,13 +1187,11 @@ TEST(MemoryDomainBlockPoolTest, AllocateAndDeallocateGenericBlockInMiddle)
 
     ASSERT_TRUE(mp.GetFirstFreeGenericBlock()->GetGreaterFreeBlock() ==
                 small_block3->GetNextBlock());
-    ASSERT_TRUE(
-        mp.GetFirstFreeGenericBlock()->GetGreaterFreeBlock()->GetLessFreeBlock() ==
-        mp.GetFirstFreeGenericBlock());
+    ASSERT_TRUE(mp.GetFirstFreeGenericBlock()->GetGreaterFreeBlock()->GetLessFreeBlock() ==
+                mp.GetFirstFreeGenericBlock());
 }
 
-TEST(MemoryDomainBlockPoolTest,
-     ReallocateGenericBlockForLessSizeInMiddleWithRestGenericBlock)
+TEST(MemoryDomainBlockPoolTest, ReallocateGenericBlockForLessSizeInMiddleWithRestGenericBlock)
 {
     auto mem_realm = CreateTestMemory();
     sme::Pointer<char> mem_ptr = mem_realm.GetBaseAddress();
@@ -1239,24 +1204,20 @@ TEST(MemoryDomainBlockPoolTest,
     auto gen_data_size1 = sme::MemoryDomainUseBlock::GetMinimumDataSize() * 5 + 1;
     (void)mp.AllocateUseBlock(gen_data_size1);
 
-    auto small_block1 =
-        mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
+    auto small_block1 = mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
 
     auto gen_data_size2 = sme::MemoryDomainBlock::GetMinimumBlockSize() * 3 +
                           sme::MemoryDomainUseBlock::GetMinimumDataSize();
     auto gen_block2 = mp.AllocateUseBlock(gen_data_size2);
 
-    ASSERT_EQ(gen_block2->GetBlockSize(),
-              sme::MemoryDomainBlock::GetMinimumBlockSize() * 4);
+    ASSERT_EQ(gen_block2->GetBlockSize(), sme::MemoryDomainBlock::GetMinimumBlockSize() * 4);
 
-    auto small_block2 =
-        mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
+    auto small_block2 = mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
 
     auto gen_data_size3 = sme::MemoryDomainUseBlock::GetMinimumDataSize() * 3 + 1;
     (void)mp.AllocateUseBlock(gen_data_size3);
 
-    auto small_block3 =
-        mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
+    auto small_block3 = mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
 
     // ug1 us1 ug2 us2 ug3 us3 fg
 
@@ -1275,9 +1236,8 @@ TEST(MemoryDomainBlockPoolTest,
     ASSERT_TRUE(small_block2->GetPreviousBlock() == mp.GetFirstFreeGenericBlock());
     ASSERT_TRUE(mp.GetFirstFreeGenericBlock()->GetGreaterFreeBlock() ==
                 small_block3->GetNextBlock());
-    ASSERT_TRUE(
-        mp.GetFirstFreeGenericBlock()->GetGreaterFreeBlock()->GetLessFreeBlock() ==
-        mp.GetFirstFreeGenericBlock());
+    ASSERT_TRUE(mp.GetFirstFreeGenericBlock()->GetGreaterFreeBlock()->GetLessFreeBlock() ==
+                mp.GetFirstFreeGenericBlock());
 
     auto gen_data_size4 = gen_data_size2 / 2;
     auto gen_block4 = mp.AllocateUseBlock(gen_data_size4);
@@ -1307,16 +1267,14 @@ TEST(MemoryDomainBlockPoolTest,
     ASSERT_TRUE(mp.GetFirstFreeGenericBlock()->GetGreaterFreeBlock() != nullptr);
     ASSERT_TRUE(mp.GetFirstFreeGenericBlock()->GetGreaterFreeBlock() ==
                 small_block3->GetNextBlock());
-    ASSERT_TRUE(
-        mp.GetFirstFreeGenericBlock()->GetGreaterFreeBlock()->GetLessFreeBlock() ==
-        mp.GetFirstFreeGenericBlock());
+    ASSERT_TRUE(mp.GetFirstFreeGenericBlock()->GetGreaterFreeBlock()->GetLessFreeBlock() ==
+                mp.GetFirstFreeGenericBlock());
     ASSERT_TRUE(mp.GetFirstFreeGenericBlock()->GetPreviousBlock() == gen_block4);
 
     ASSERT_TRUE(mp.GetFirstFreeSmallBlock() == nullptr);
 }
 
-TEST(MemoryDomainBlockPoolTest,
-     ReallocateGenericBlockForLessSizeInMiddleWithRestSmallBlock)
+TEST(MemoryDomainBlockPoolTest, ReallocateGenericBlockForLessSizeInMiddleWithRestSmallBlock)
 {
     auto mem_realm = CreateTestMemory();
     sme::Pointer<char> mem_ptr = mem_realm.GetBaseAddress();
@@ -1329,21 +1287,18 @@ TEST(MemoryDomainBlockPoolTest,
     auto gen_data_size1 = sme::MemoryDomainUseBlock::GetMinimumDataSize() * 5 + 1;
     (void)mp.AllocateUseBlock(gen_data_size1);
 
-    auto small_block1 =
-        mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
+    auto small_block1 = mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
 
     auto gen_data_size2 = sme::MemoryDomainBlock::GetMinimumBlockSize() * 2 +
                           sme::MemoryDomainUseBlock::GetMinimumDataSize();
     auto gen_block2 = mp.AllocateUseBlock(gen_data_size2);
 
-    auto small_block2 =
-        mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
+    auto small_block2 = mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
 
     auto gen_data_size3 = sme::MemoryDomainUseBlock::GetMinimumDataSize() * 3 + 1;
     (void)mp.AllocateUseBlock(gen_data_size3);
 
-    auto small_block3 =
-        mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
+    auto small_block3 = mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
 
     // ug1 us1 ug2 us2 ug3 us3 fg
 
@@ -1362,12 +1317,10 @@ TEST(MemoryDomainBlockPoolTest,
     ASSERT_TRUE(small_block2->GetPreviousBlock() == mp.GetFirstFreeGenericBlock());
     ASSERT_TRUE(mp.GetFirstFreeGenericBlock()->GetGreaterFreeBlock() ==
                 small_block3->GetNextBlock());
-    ASSERT_TRUE(
-        mp.GetFirstFreeGenericBlock()->GetGreaterFreeBlock()->GetLessFreeBlock() ==
-        mp.GetFirstFreeGenericBlock());
+    ASSERT_TRUE(mp.GetFirstFreeGenericBlock()->GetGreaterFreeBlock()->GetLessFreeBlock() ==
+                mp.GetFirstFreeGenericBlock());
 
-    auto gen_data_size4 =
-        gen_data_size2 - sme::MemoryDomainUseBlock::GetMinimumBlockSize();
+    auto gen_data_size4 = gen_data_size2 - sme::MemoryDomainUseBlock::GetMinimumBlockSize();
     auto gen_block4 = mp.AllocateUseBlock(gen_data_size4);
 
     // ug1 us1 ug4 fs us2 ug3 us3 fg
@@ -1387,8 +1340,7 @@ TEST(MemoryDomainBlockPoolTest,
     ASSERT_EQ(gen_block4->GetNextBlock()->GetBlockSize(),
               sme::MemoryDomainBlock::GetMinimumBlockSize());
 
-    ASSERT_EQ(gen_block4->GetNextBlock()->GetType(),
-              sme::MemoryDomainBlock::Type::kFreeSmall);
+    ASSERT_EQ(gen_block4->GetNextBlock()->GetType(), sme::MemoryDomainBlock::Type::kFreeSmall);
 
     ASSERT_TRUE(mp.GetFirstFreeGenericBlock() != nullptr);
     ASSERT_TRUE(mp.GetFirstFreeGenericBlock()->GetGreaterFreeBlock() == nullptr);
@@ -1411,20 +1363,17 @@ TEST(MemoryDomainBlockPoolTest, ReallocateGenericBlockForSameSizeInMiddle)
     auto gen_data_size1 = sme::MemoryDomainUseBlock::GetMinimumDataSize() * 5 + 1;
     (void)mp.AllocateUseBlock(gen_data_size1);
 
-    auto small_block1 =
-        mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
+    auto small_block1 = mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
 
     auto gen_data_size2 = sme::MemoryDomainUseBlock::GetMinimumDataSize() * 3;
     auto gen_block2 = mp.AllocateUseBlock(gen_data_size2);
 
-    auto small_block2 =
-        mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
+    auto small_block2 = mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
 
     auto gen_data_size3 = sme::MemoryDomainUseBlock::GetMinimumDataSize() * 3 + 1;
     (void)mp.AllocateUseBlock(gen_data_size3);
 
-    auto small_block3 =
-        mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
+    auto small_block3 = mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
 
     // ug1 us1 ug2 us2 ug3 us3 fg
 
@@ -1443,9 +1392,8 @@ TEST(MemoryDomainBlockPoolTest, ReallocateGenericBlockForSameSizeInMiddle)
     ASSERT_TRUE(small_block2->GetPreviousBlock() == mp.GetFirstFreeGenericBlock());
     ASSERT_TRUE(mp.GetFirstFreeGenericBlock()->GetGreaterFreeBlock() ==
                 small_block3->GetNextBlock());
-    ASSERT_TRUE(
-        mp.GetFirstFreeGenericBlock()->GetGreaterFreeBlock()->GetLessFreeBlock() ==
-        mp.GetFirstFreeGenericBlock());
+    ASSERT_TRUE(mp.GetFirstFreeGenericBlock()->GetGreaterFreeBlock()->GetLessFreeBlock() ==
+                mp.GetFirstFreeGenericBlock());
 
     auto gen_data_size4 = sme::MemoryDomainUseBlock::GetMinimumDataSize() * 3;
     auto gen_block4 = mp.AllocateUseBlock(gen_data_size4);
@@ -1472,8 +1420,7 @@ TEST(MemoryDomainBlockPoolTest, ReallocateGenericBlockForSameSizeInMiddle)
     ASSERT_TRUE(mp.GetFirstFreeSmallBlock() == nullptr);
 }
 
-TEST(MemoryDomainBlockPoolTest,
-     AllocateThreeSequentalSmallBlocksInMiddleFromFreeGenericBlock)
+TEST(MemoryDomainBlockPoolTest, AllocateThreeSequentalSmallBlocksInMiddleFromFreeGenericBlock)
 {
     auto mem_realm = CreateTestMemory();
     sme::Pointer<char> mem_ptr = mem_realm.GetBaseAddress();
@@ -1501,8 +1448,7 @@ TEST(MemoryDomainBlockPoolTest,
     ASSERT_TRUE(mp.GetFirstFreeGenericBlock() != last_free_gen_block);
     ASSERT_TRUE(mp.GetFirstFreeGenericBlock() == gen_block1->GetNextBlock());
 
-    auto small_block1 =
-        mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
+    auto small_block1 = mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
 
     ASSERT_TRUE(small_block1 == gen_block1->GetNextBlock());
     ASSERT_TRUE(mp.GetFirstFreeSmallBlock() == nullptr);
@@ -1510,8 +1456,7 @@ TEST(MemoryDomainBlockPoolTest,
     ASSERT_TRUE(small_block1->GetNextBlock() == mp.GetFirstFreeGenericBlock());
     ASSERT_TRUE(mp.GetFirstFreeGenericBlock()->GetPreviousBlock() == small_block1);
 
-    auto small_block2 =
-        mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
+    auto small_block2 = mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
 
     ASSERT_TRUE(small_block2 == small_block1->GetNextBlock());
     ASSERT_TRUE(mp.GetFirstFreeGenericBlock() != nullptr);
@@ -1522,8 +1467,7 @@ TEST(MemoryDomainBlockPoolTest,
     ASSERT_TRUE(mp.GetFirstFreeSmallBlock()->GetPreviousBlock() == small_block2);
     ASSERT_TRUE(mp.GetFirstFreeSmallBlock()->GetNextBlock() == gen_block3);
 
-    auto small_block3 =
-        mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
+    auto small_block3 = mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
 
     ASSERT_TRUE(small_block3 == small_block2->GetNextBlock());
     ASSERT_TRUE(mp.GetFirstFreeGenericBlock() != nullptr);
@@ -1558,14 +1502,10 @@ TEST(MemoryDomainBlockPoolTest, DeallocateSequentalFourSmallBlocksInMiddle)
 
     mp.DeallocateUseBlock(gen_block2);
 
-    auto small_block1 =
-        mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
-    auto small_block2 =
-        mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
-    auto small_block3 =
-        mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
-    auto small_block4 =
-        mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
+    auto small_block1 = mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
+    auto small_block2 = mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
+    auto small_block3 = mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
+    auto small_block4 = mp.AllocateUseBlock(sme::MemoryDomainUseBlock::GetMinimumDataSize());
 
     ASSERT_TRUE(mp.GetFirstFreeSmallBlock() == nullptr);
 
@@ -1589,8 +1529,7 @@ TEST(MemoryDomainBlockPoolTest, DeallocateSequentalFourSmallBlocksInMiddle)
 
     auto next_free_small_block = mp.GetFirstFreeSmallBlock()->GetNextFreeBlock();
     ASSERT_TRUE(next_free_small_block->GetNextFreeBlock() == nullptr);
-    ASSERT_TRUE(next_free_small_block->GetPreviousFreeBlock() ==
-                mp.GetFirstFreeSmallBlock());
+    ASSERT_TRUE(next_free_small_block->GetPreviousFreeBlock() == mp.GetFirstFreeSmallBlock());
 
     mp.DeallocateUseBlock(small_block2);
 
@@ -1605,9 +1544,8 @@ TEST(MemoryDomainBlockPoolTest, DeallocateSequentalFourSmallBlocksInMiddle)
     ASSERT_TRUE(mp.GetFirstFreeGenericBlock()->GetPreviousBlock() == gen_block1);
     ASSERT_TRUE(mp.GetFirstFreeGenericBlock()->GetGreaterFreeBlock() ==
                 gen_block3->GetNextBlock());
-    ASSERT_TRUE(
-        mp.GetFirstFreeGenericBlock()->GetGreaterFreeBlock()->GetLessFreeBlock() ==
-        mp.GetFirstFreeGenericBlock());
+    ASSERT_TRUE(mp.GetFirstFreeGenericBlock()->GetGreaterFreeBlock()->GetLessFreeBlock() ==
+                mp.GetFirstFreeGenericBlock());
     ASSERT_TRUE(gen_block3->GetPreviousBlock() == mp.GetFirstFreeGenericBlock());
 }
 
@@ -1674,8 +1612,7 @@ TEST(MemoryDomainBlockPoolTest, ShrinkMemoryOnOneFreeBlock)
 
     sme::MemoryDomainFreeBlockPool mp;
 
-    auto [first_block, redzone_block] =
-        mp.AddFreeMemoryArea(mem_ptr, mem_realm.GetCapacity());
+    auto [first_block, redzone_block] = mp.AddFreeMemoryArea(mem_ptr, mem_realm.GetCapacity());
 
     auto new_redzone_block = mp.ShrinkMemoryAreaFrom(redzone_block);
     ASSERT_TRUE(first_block == new_redzone_block);
@@ -1688,8 +1625,7 @@ TEST(MemoryDomainBlockPoolTest, ShrinkMemoryOnOneUseBlock)
 
     sme::MemoryDomainFreeBlockPool mp;
 
-    auto [first_block, redzone_block] =
-        mp.AddFreeMemoryArea(mem_ptr, mem_realm.GetCapacity());
+    auto [first_block, redzone_block] = mp.AddFreeMemoryArea(mem_ptr, mem_realm.GetCapacity());
 
     auto max_data_size = sme::MemoryDomainUseBlock::GetDataCapacityAt(*first_block);
     auto use_block = mp.AllocateUseBlock(max_data_size);
@@ -1707,8 +1643,7 @@ TEST(MemoryDomainBlockPoolTest, ShrinkMemoryOnOneUseAndOneFreeBlocks)
 
     sme::MemoryDomainFreeBlockPool mp;
 
-    auto [first_block, redzone_block] =
-        mp.AddFreeMemoryArea(mem_ptr, mem_realm.GetCapacity());
+    auto [first_block, redzone_block] = mp.AddFreeMemoryArea(mem_ptr, mem_realm.GetCapacity());
 
     auto use_block = mp.AllocateUseBlock(1);
 
@@ -1725,8 +1660,7 @@ TEST(MemoryDomainBlockPoolTest, ShrinkMemoryOnOneFreeAndOneUseBlocks)
 
     sme::MemoryDomainFreeBlockPool mp;
 
-    auto [first_block, redzone_block] =
-        mp.AddFreeMemoryArea(mem_ptr, mem_realm.GetCapacity());
+    auto [first_block, redzone_block] = mp.AddFreeMemoryArea(mem_ptr, mem_realm.GetCapacity());
 
     auto use_block1 = mp.AllocateUseBlock(1);
     auto use_block2 = mp.AllocateUseBlock(1);
@@ -1751,8 +1685,7 @@ TEST(MemoryDomainBlockPoolTest, ShrinkMemoryAndTryAllocate)
 
     sme::MemoryDomainFreeBlockPool mp;
 
-    auto [first_block, redzone_block] =
-        mp.AddFreeMemoryArea(mem_ptr, mem_realm.GetCapacity());
+    auto [first_block, redzone_block] = mp.AddFreeMemoryArea(mem_ptr, mem_realm.GetCapacity());
 
     (void)mp.AllocateUseBlock(1);
 

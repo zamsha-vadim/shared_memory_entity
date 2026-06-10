@@ -43,6 +43,21 @@ void DeleteMemoryDomainSegment(Pointer<MemoryDomainSegment>& segment) noexcept
     segment.Reset();
 }
 
+void ValidateSizes(size_t data_size, size_t mem_align)
+{
+    if (data_size == 0)
+        throw std::invalid_argument("Allocation size must be greater 0");
+    if (data_size >= std::numeric_limits<MemoryDomain::Size>::max())
+        throw std::invalid_argument(
+            "Allocation size is greater " +
+            std::to_string(std::numeric_limits<MemoryDomain::Size>::max()));
+
+    if (mem_align == 0 || mem_align >= std::numeric_limits<MemoryDomain::Size>::max())
+        throw std::invalid_argument("Invalid alignment value");
+    if (mem_align > 1 && (mem_align % 2) != 0)
+        throw std::invalid_argument("Invalid alignment value: must be a power of 2");
+}
+
 constexpr uint64_t kMemoryDomainCheckTypeId{0x9F6680B020F62};
 
 }  // namespace
@@ -77,14 +92,13 @@ auto MemoryDomain::IsValidObjectId(const MemoryDomain& obj) noexcept -> bool
     return obj.kTypeCheckValue == kMemoryDomainCheckTypeId;
 }
 
-auto MemoryDomain::Allocate(size_t data_size) -> Pointer<void>
+auto MemoryDomain::Allocate(size_t data_size, size_t mem_align) -> Pointer<void>
 {
+    ValidateSizes(data_size, mem_align);
+
     const std::lock_guard sync_guard{sync_};
 
-    if (data_size == 0)
-        throw std::invalid_argument("Allocation size must be greater 0");
-
-    auto block = AllocateBlock(data_size);
+    auto block = AllocateBlock(data_size, mem_align);
 
     return (block != nullptr) ? Pointer<void>{block->GetData()} : Pointer<void>{};
 }
@@ -155,11 +169,12 @@ auto MemoryDomain::IsAllocationExtensible() const noexcept -> bool
     return alloc_extensible_;
 }
 
-auto MemoryDomain::AllocateBlock(Size data_size) -> Pointer<MemoryDomainUseBlock>
+auto MemoryDomain::AllocateBlock(Size data_size, Size mem_align)
+    -> Pointer<MemoryDomainUseBlock>
 {
     assert(data_size != 0);
 
-    auto block = free_block_pool_.AllocateUseBlock(data_size);
+    auto block = free_block_pool_.AllocateUseBlock(data_size, mem_align);
     if (block != nullptr)
         return block;
 
@@ -168,7 +183,7 @@ auto MemoryDomain::AllocateBlock(Size data_size) -> Pointer<MemoryDomainUseBlock
 
     if (!AddFreeMemory(data_size))
         return {};
-    return free_block_pool_.AllocateUseBlock(data_size);
+    return free_block_pool_.AllocateUseBlock(data_size, mem_align);
 }
 
 auto MemoryDomain::GetMemorySpace() const noexcept -> MemorySpace&
