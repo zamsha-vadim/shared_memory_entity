@@ -35,19 +35,49 @@ namespace {
 
 }  // namespace
 
-auto IsSuitableForAllocation(const MemorySpaceBlock& block,
+auto IsSuitableForAllocation(const MemorySpaceBlock& src_block,
                              MemorySpaceBlock::Size block_size,
-                             size_t mem_align) noexcept -> bool
+                             size_t mem_align) noexcept
+    -> std::pair<bool, MemorySpaceBlock::Position>
 {
-    bool suitable = (block.free && block_size <= block.size);
-    if (!suitable)
-        return false;
+    bool suitable = (src_block.free && (block_size <= src_block.size));
+    MemorySpaceBlock::Position block_ofs{0};
 
-    if (mem_align > 1) {
-        suitable = ((reinterpret_cast<uintptr_t>(block.data) % mem_align) == 0);
+    if (suitable && mem_align > 1) {
+        auto src_data_pos = reinterpret_cast<uintptr_t>(src_block.data);
+
+        auto align_remainder = src_data_pos % mem_align;
+
+        suitable = (align_remainder == 0);
+        if (!suitable) {
+            src_data_pos += mem_align - align_remainder;
+
+            auto src_block_begin_pos = reinterpret_cast<uintptr_t>(&src_block);
+            auto src_block_end_pos = src_block_begin_pos + src_block.size;;
+
+            auto block_begin_pos = src_data_pos - kMemorySpaceBlockHeaderSize;
+            while ((block_begin_pos - src_block_begin_pos) <
+                   MemorySpaceBlock::GetMinBlockSize()) {
+                block_begin_pos += mem_align;
+            }
+
+            auto block_end_pos = block_begin_pos + block_size;
+
+            assert((block_begin_pos % kMemorySpaceBlockAlign) == 0);
+            assert((block_end_pos % kMemorySpaceBlockAlign) == 0);
+
+            if (block_end_pos > src_block_end_pos)
+                return {false, 0};
+
+            block_ofs = block_begin_pos - src_block_begin_pos;
+            assert((block_ofs % kMemorySpaceBlockAlign) == 0);
+            assert(block_ofs >= MemorySpaceBlock::GetMinBlockSize());
+
+            suitable = true;
+        }
     }
 
-    return suitable;
+    return {suitable, block_ofs};
 }
 
 // class MemorySpaceManipulator
@@ -266,7 +296,8 @@ auto MemorySpaceManipulator::FindFreeBlock(Block& start_block,
                                            Size block_size,
                                            size_t mem_align,
                                            const MemorySpaceBlockMatcher& matcher,
-                                           bool unite_free) noexcept -> Block*
+                                           bool unite_free) noexcept
+    -> std::pair<Block*, Position>
 {
     assert(IsLocationValid(start_block));
 
@@ -290,14 +321,17 @@ auto MemorySpaceManipulator::FindFreeBlock(Block& start_block,
                 assert(iter_block != nullptr);
             }
 
-            if (iter_block->free && matcher(*iter_block, block_size, mem_align))
-                return iter_block;
+            if (iter_block->free) {
+                auto [suitable, block_pos] = matcher(*iter_block, block_size, mem_align);
+                if (suitable)
+                    return {iter_block, block_pos};
+            }
         }
 
         iter_block = &GetNextBlock(*iter_block);
     } while (iter_block != &start_block);
 
-    return nullptr;
+    return {nullptr, 0};
 }
 
 }  // namespace sme

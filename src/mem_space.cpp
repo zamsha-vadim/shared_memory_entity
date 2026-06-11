@@ -89,21 +89,37 @@ auto MemorySpace::Allocate(size_t size, size_t mem_align) -> Pointer<void>
 
     std::lock_guard lg{sync_};
 
-    Block* suitable_block =
+    auto [suitable_block, block_ofs] =
         mem_manip_.FindFreeBlock(*curr_block_, block_size, mem_align, matcher, true);
     if (suitable_block == nullptr)
         return {};
 
-    if (suitable_block->size > (block_size + MemorySpaceBlock::GetMinBlockSize())) {
-        auto& new_free_block = mem_manip_.SplitBlock(*suitable_block, block_size);
-        curr_block_ = &new_free_block;
+    Pointer<void> res_ptr;
+
+    if (block_ofs == 0) {
+        if (suitable_block->size > (block_size + MemorySpaceBlock::GetMinBlockSize())) {
+            auto& new_free_block = mem_manip_.SplitBlock(*suitable_block, block_size);
+            curr_block_ = &new_free_block;
+        } else {
+            curr_block_ = suitable_block;
+        }
+
+        suitable_block->free = false;
+
+        res_ptr = Pointer<void>{suitable_block->data};
     } else {
-        curr_block_ = suitable_block;
+        auto& new_block = mem_manip_.SplitBlock(*suitable_block, block_ofs);
+        assert((reinterpret_cast<uintptr_t>(new_block.data) % mem_align) == 0);
+
+        new_block.free = false;
+
+        auto& new_free_block = mem_manip_.SplitBlock(new_block, block_size);
+        curr_block_ = &new_free_block;
+
+        res_ptr = Pointer<void>{new_block.data};
     }
 
-    suitable_block->free = false;
-
-    return Pointer<void>{suitable_block->data};
+    return res_ptr;
 }
 
 auto MemorySpace::AllocateAtLeast(size_t size, size_t mem_align)
@@ -116,7 +132,7 @@ auto MemorySpace::AllocateAtLeast(size_t size, size_t mem_align)
 
     std::lock_guard lg{sync_};
 
-    Block* suitable_block =
+    auto [suitable_block, block_ofs] =
         mem_manip_.FindFreeBlock(*curr_block_, block_size, mem_align, matcher, true);
     if (suitable_block == nullptr)
         return {};
