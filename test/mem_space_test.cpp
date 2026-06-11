@@ -646,7 +646,8 @@ TEST(MemorySpaceTest, TestAlignedAllocation)
 
             auto aligned_ptr = mem_space.Allocate(data_size, mem_align);
 
-            ASSERT_TRUE(aligned_ptr != nullptr);
+            ASSERT_TRUE(aligned_ptr != nullptr)
+                << "Data size: " << data_size << ", alignment: " << mem_align;
             auto data_pos = reinterpret_cast<uintptr_t>(aligned_ptr.GetAddress());
             ASSERT_TRUE((data_pos % mem_align) == 0);
 

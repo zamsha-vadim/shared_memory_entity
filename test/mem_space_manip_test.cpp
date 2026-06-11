@@ -525,9 +525,6 @@ TEST(MemorySpaceManipulatorTest, TestAlignedDataForFirstBlock)
 
             auto base_addr = manip.GetBaseAddress();
 
-            // auto base_addr_pos = reinterpret_cast<uintptr_t>(base_addr.GetAddress());
-            // std::cout << mem_align << ": " << (base_addr_pos % mem_align) << std::endl;
-
             auto [found_block, block_ofs] = manip.FindFreeBlock(
                 manip.GetFirstBlock(), block_size, mem_align, sme::IsSuitableForAllocation);
 

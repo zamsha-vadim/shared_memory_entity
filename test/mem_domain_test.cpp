@@ -188,6 +188,36 @@ TEST(MemoryDomainTest, TestInvalidDeallocate)
 }
 */
 
+TEST(MemoryDomainTest, TestAlignedAllocation)
+{
+    auto mem_space = CreateTestMemorySpace();
+
+    const auto kDataSizeStep = 50UL;
+    const auto kMaxDataSize = mem_space.GetCapacity() / 2;
+
+    for (auto data_size = 1UL; data_size <= kMaxDataSize; data_size += kDataSizeStep) {
+        sme::MemoryDomain mem_domain{mem_space};
+
+        auto mem_space_pos =
+            reinterpret_cast<uintptr_t>(mem_space.GetBaseAddress().GetAddress());
+
+        for (size_t mem_align = 2; mem_align != 0; mem_align <<= 1) {
+            auto dummy_ptr = mem_domain.Allocate(1);
+            ASSERT_TRUE(dummy_ptr != nullptr);
+
+            auto aligned_ptr = mem_domain.Allocate(data_size, mem_align);
+
+            ASSERT_TRUE(aligned_ptr != nullptr)
+                << "Data size: " << data_size << ", alignment: " << mem_align;
+            auto data_pos = reinterpret_cast<uintptr_t>(aligned_ptr.GetAddress());
+            ASSERT_TRUE((data_pos % mem_align) == 0);
+
+            if ((data_pos - mem_space_pos + data_size) >= (mem_space.GetCapacity() / 2))
+                break;
+        }
+    }
+}
+
 TEST(MemoryDomainTest, TestAddressState)
 {
     auto mem_space = CreateTestMemorySpace();

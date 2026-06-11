@@ -48,9 +48,6 @@ const char* kSomeChars =
 
 TEST(MemoryDomainAllocTest, TestBasicAllocation)
 {
-    std::cout << "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX " << alignof(sme::MemoryDomain) << std::endl;
-    std::cout << "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX " << alignof(int) << std::endl;
-
     auto mem_space = CreateTestMemorySpace();
     auto mem_domain = sme::CreateMemoryDomain(mem_space);
 
