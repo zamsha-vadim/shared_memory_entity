@@ -53,11 +53,11 @@ auto IsSuitableForAllocation(const MemorySpaceBlock& src_block,
             src_data_pos += mem_align - align_remainder;
 
             auto src_block_begin_pos = reinterpret_cast<uintptr_t>(&src_block);
-            auto src_block_end_pos = src_block_begin_pos + src_block.size;;
+            auto src_block_end_pos = src_block_begin_pos + src_block.size;
 
             auto block_begin_pos = src_data_pos - kMemorySpaceBlockHeaderSize;
             while ((block_begin_pos - src_block_begin_pos) <
-                   MemorySpaceBlock::GetMinBlockSize()) {
+                   MemorySpaceBlock::GetMinimumBlockSize()) {
                 block_begin_pos += mem_align;
             }
 
@@ -71,7 +71,7 @@ auto IsSuitableForAllocation(const MemorySpaceBlock& src_block,
 
             block_ofs = block_begin_pos - src_block_begin_pos;
             assert((block_ofs % kMemorySpaceBlockAlign) == 0);
-            assert(block_ofs >= MemorySpaceBlock::GetMinBlockSize());
+            assert(block_ofs >= MemorySpaceBlock::GetMinimumBlockSize());
 
             suitable = true;
         }
@@ -91,9 +91,9 @@ MemorySpaceManipulator::MemorySpaceManipulator(const Pointer<void>& mem,
 
     std::tie(mem_, mem_size_) = AlignBaseLocation(mem, size);
 
-    if (mem_ == nullptr || mem_size_ < MemorySpaceBlock::GetMinBlockSize())
+    if (mem_ == nullptr || mem_size_ < MemorySpaceBlock::GetMinimumBlockSize())
         throw std::invalid_argument("Memory size must be greater " +
-                                    std::to_string(MemorySpaceBlock::GetMinBlockSize()));
+                                    std::to_string(MemorySpaceBlock::GetMinimumBlockSize()));
     if (zeroed)
         std::memset(mem_.GetAddress(), 0, mem_size_);
 
@@ -174,13 +174,13 @@ auto MemorySpaceManipulator::UniteFreeBlocks(Block& src_block) noexcept -> Block
     return first_free_block;
 }
 
-auto MemorySpaceManipulator::SplitBlock(Block& src_block,
-                                        Size primary_block_size) noexcept -> Block&
+auto MemorySpaceManipulator::SplitBlock(Block& src_block, Size primary_block_size) noexcept
+    -> Block&
 {
     assert(IsLocationValid(src_block));
 
     assert(primary_block_size > kMemorySpaceBlockHeaderSize);
-    assert((primary_block_size + MemorySpaceBlock::GetMinBlockSize()) <= src_block.size);
+    assert((primary_block_size + MemorySpaceBlock::GetMinimumBlockSize()) <= src_block.size);
 
     auto& src_next_block = GetNextBlock(src_block);
 
@@ -238,8 +238,7 @@ auto MemorySpaceManipulator::GetNextBlock(const Block& block) noexcept -> Block&
     assert(next_block_addr <= (mem_.GetAddress() + mem_size_));
 
     return (next_block_addr < (mem_.GetAddress() + mem_size_))
-               ? *std::launder(
-                     reinterpret_cast<Block*>(const_cast<char*>(next_block_addr)))
+               ? *std::launder(reinterpret_cast<Block*>(const_cast<char*>(next_block_addr)))
                : *first_block_;
 }
 
@@ -249,14 +248,12 @@ auto MemorySpaceManipulator::GetPreviousBlock(const Block& block) noexcept -> Bl
 
     char* prev_block_addr = mem_.GetAddress() + block.prev_block_pos;
     assert(mem_.GetAddress() <= prev_block_addr &&
-           prev_block_addr <
-               (mem_.GetAddress() + mem_size_ - kMemorySpaceBlockHeaderSize));
+           prev_block_addr < (mem_.GetAddress() + mem_size_ - kMemorySpaceBlockHeaderSize));
 
     return *std::launder(reinterpret_cast<Block*>(prev_block_addr));
 }
 
-auto MemorySpaceManipulator::GetBlockPosition(const Block& block) const noexcept
-    -> Position
+auto MemorySpaceManipulator::GetBlockPosition(const Block& block) const noexcept -> Position
 {
     assert(IsLocationValid(block));
 
@@ -270,8 +267,8 @@ auto MemorySpaceManipulator::GetBlockDataSize(const Block& block) const noexcept
     return block.GetDataSize();
 }
 
-auto MemorySpaceManipulator::GetBlockByDataAddress(
-    const Pointer<void>& data_addr) noexcept -> Block*
+auto MemorySpaceManipulator::GetBlockByDataAddress(const Pointer<void>& data_addr) noexcept
+    -> Block*
 {
     if (!data_addr)
         return nullptr;

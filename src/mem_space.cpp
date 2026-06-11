@@ -24,7 +24,7 @@ void CheckPointerForNull(const Pointer<void>& ptr)
         throw std::invalid_argument("Pointer is null");
 }
 
-void CheckSizeForZero(size_t size)
+void CheckSizes(size_t size, size_t /*mem_align*/)
 {
     if (size == 0)
         throw std::invalid_argument("Allocation size must be greater 0");
@@ -82,7 +82,7 @@ auto MemorySpace::GetCapacity() const noexcept -> size_t
 
 auto MemorySpace::Allocate(size_t size, size_t mem_align) -> Pointer<void>
 {
-    CheckSizeForZero(size);
+    CheckSizes(size, mem_align);
 
     auto block_size = MemorySpaceBlock::CalculateBlockSize(size);
     const auto& matcher{g_free_block_matcher};
@@ -97,7 +97,7 @@ auto MemorySpace::Allocate(size_t size, size_t mem_align) -> Pointer<void>
     Pointer<void> res_ptr;
 
     if (block_ofs == 0) {
-        if (suitable_block->size > (block_size + MemorySpaceBlock::GetMinBlockSize())) {
+        if (suitable_block->size > (block_size + MemorySpaceBlock::GetMinimumBlockSize())) {
             auto& new_free_block = mem_manip_.SplitBlock(*suitable_block, block_size);
             curr_block_ = &new_free_block;
         } else {
@@ -109,12 +109,12 @@ auto MemorySpace::Allocate(size_t size, size_t mem_align) -> Pointer<void>
         res_ptr = Pointer<void>{suitable_block->data};
     } else {
         auto& new_block = mem_manip_.SplitBlock(*suitable_block, block_ofs);
+        new_block.free = false;
         assert((reinterpret_cast<uintptr_t>(new_block.data) % mem_align) == 0);
 
-        new_block.free = false;
+        [[maybe_unused]] auto& new_free_block = mem_manip_.SplitBlock(new_block, block_size);
 
-        auto& new_free_block = mem_manip_.SplitBlock(new_block, block_size);
-        curr_block_ = &new_free_block;
+        curr_block_ = suitable_block;
 
         res_ptr = Pointer<void>{new_block.data};
     }
@@ -125,7 +125,7 @@ auto MemorySpace::Allocate(size_t size, size_t mem_align) -> Pointer<void>
 auto MemorySpace::AllocateAtLeast(size_t size, size_t mem_align)
     -> std::pair<Pointer<void>, size_t>
 {
-    CheckSizeForZero(size);
+    CheckSizes(size, mem_align);
 
     auto block_size = MemorySpaceBlock::CalculateBlockSize(size);
     const auto& matcher{g_free_block_matcher};
@@ -137,12 +137,28 @@ auto MemorySpace::AllocateAtLeast(size_t size, size_t mem_align)
     if (suitable_block == nullptr)
         return {};
 
-    suitable_block->free = false;
+    Pointer<void> res_ptr;
+    size_t data_size{};
 
-    curr_block_ = suitable_block;
+    if (block_ofs == 0) {
+        suitable_block->free = false;
 
-    auto data_size = mem_manip_.GetBlockDataSize(*suitable_block);
-    return {Pointer<void>{suitable_block->data}, data_size};
+        curr_block_ = suitable_block;
+
+        res_ptr = Pointer<void>{suitable_block->data};
+        data_size = mem_manip_.GetBlockDataSize(*suitable_block);
+    } else {
+        auto& new_block = mem_manip_.SplitBlock(*suitable_block, block_ofs);
+        new_block.free = false;
+        assert((reinterpret_cast<uintptr_t>(new_block.data) % mem_align) == 0);
+
+        curr_block_ = suitable_block;
+
+        res_ptr = Pointer<void>{new_block.data};
+        data_size = mem_manip_.GetBlockDataSize(new_block);
+    }
+
+    return {res_ptr, data_size};
 }
 
 auto MemorySpace::Resize(Pointer<void> ptr, size_t new_size) -> bool

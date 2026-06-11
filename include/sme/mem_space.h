@@ -125,7 +125,7 @@ class SME_EXPORT MemorySpace final {
 
 constexpr auto MemorySpace::GetMinimumSpaceSize() noexcept -> size_t
 {
-    return MemorySpaceBlock::GetMinBlockSize();
+    return MemorySpaceBlock::GetMinimumBlockSize();
 }
 
 }  // namespace sme

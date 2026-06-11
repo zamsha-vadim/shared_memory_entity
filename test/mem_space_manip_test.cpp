@@ -37,25 +37,28 @@ TEST(MemorySpaceManipulatorTest, TestValidConstructor)
 
 TEST(MemorySpaceManipulatorTest, TestConstructorForSmallestValidSize)
 {
-    alignas(sme::kMemorySpaceBlockAlign) char mem[sme::MemorySpaceBlock::GetMinBlockSize()];
+    alignas(
+        sme::kMemorySpaceBlockAlign) char mem[sme::MemorySpaceBlock::GetMinimumBlockSize()];
 
-    EXPECT_NO_THROW((sme::MemorySpaceManipulator{sme::Pointer{mem},
-                                                 sme::MemorySpaceBlock::GetMinBlockSize()}));
+    EXPECT_NO_THROW((sme::MemorySpaceManipulator{
+        sme::Pointer{mem}, sme::MemorySpaceBlock::GetMinimumBlockSize()}));
 }
 
 TEST(MemorySpaceManipulatorTest, TestConstructorForSmallestInvalidSize)
 {
-    EXPECT_THROW((sme::MemorySpaceManipulator{sme::Pointer{some_memory.data()},
-                                              sme::MemorySpaceBlock::GetMinBlockSize() - 1}),
-                 std::invalid_argument);
+    EXPECT_THROW(
+        (sme::MemorySpaceManipulator{sme::Pointer{some_memory.data()},
+                                     sme::MemorySpaceBlock::GetMinimumBlockSize() - 1}),
+        std::invalid_argument);
 }
 
 TEST(MemorySpaceManipulatorTest, TestConstructorForEmptyArguments)
 {
     EXPECT_THROW((sme::MemorySpaceManipulator{sme::Pointer{some_memory.data()}, 0}),
                  std::invalid_argument);
-    EXPECT_THROW((sme::MemorySpaceManipulator{{}, sme::MemorySpaceBlock::GetMinBlockSize()}),
-                 std::invalid_argument);
+    EXPECT_THROW(
+        (sme::MemorySpaceManipulator{{}, sme::MemorySpaceBlock::GetMinimumBlockSize()}),
+        std::invalid_argument);
 }
 
 TEST(MemorySpaceManipulatorTest, TestConstructorForNotAlignedMemory)
@@ -178,10 +181,10 @@ TEST(MemorySpaceManipulatorTest, TestSplitForOneByteSize)
     auto& block1 = manip.GetFirstBlock();
 
     auto& block2 = manip.SplitBlock(block1, block_size);
-    EXPECT_EQ(block1.size, sme::MemorySpaceBlock::GetMinBlockSize());
+    EXPECT_EQ(block1.size, sme::MemorySpaceBlock::GetMinimumBlockSize());
 
     manip.SplitBlock(block2, block_size);
-    EXPECT_EQ(block2.size, sme::MemorySpaceBlock::GetMinBlockSize());
+    EXPECT_EQ(block2.size, sme::MemorySpaceBlock::GetMinimumBlockSize());
 }
 
 TEST(MemorySpaceManipulatorTest, TestSplitForEqualSizes)
@@ -492,7 +495,7 @@ TEST(MemorySpaceManipulatorTest, TestFindForMaximumSize)
 {
     auto manip = CreateMemorySpaceManipulator();
 
-    size_t max_alloc_size{manip.GetCapacity() - sme::MemorySpaceBlock::GetMinBlockSize()};
+    size_t max_alloc_size{manip.GetCapacity() - sme::MemorySpaceBlock::GetMinimumBlockSize()};
     auto max_size = sme::MemorySpaceBlock::CalculateBlockSize(max_alloc_size);
 
     sme::MemorySpaceBlock* found_block{};
@@ -501,5 +504,40 @@ TEST(MemorySpaceManipulatorTest, TestFindForMaximumSize)
     std::tie(found_block, block_ofs) =
         manip.FindFreeBlock(manip.GetFirstBlock(), max_size, 1, sme::IsSuitableForAllocation);
     EXPECT_TRUE(found_block != nullptr);
-    ASSERT_EQ(block_ofs, 0);
+    EXPECT_EQ(block_ofs, 0);
+}
+
+TEST(MemorySpaceManipulatorTest, TestAlignedDataForFirstBlock)
+{
+    const auto kDataSizeStep = sme::MemorySpaceBlock::GetMinimumBlockSize();
+    const auto kMaxDataSize = kDataSizeStep * 10;
+
+    for (auto data_size = kDataSizeStep; data_size <= kMaxDataSize;
+         data_size += kDataSizeStep) {
+        auto block_size = sme::MemorySpaceBlock::CalculateBlockSize(data_size);
+
+        for (size_t mem_align = 2; mem_align != 0; mem_align <<= 1) {
+            auto manip = CreateMemorySpaceManipulator();
+
+            if (mem_align >=
+                (manip.GetCapacity() - sme::MemorySpaceBlock::GetMinimumBlockSize()))
+                break;
+
+            auto base_addr = manip.GetBaseAddress();
+
+            // auto base_addr_pos = reinterpret_cast<uintptr_t>(base_addr.GetAddress());
+            // std::cout << mem_align << ": " << (base_addr_pos % mem_align) << std::endl;
+
+            auto [found_block, block_ofs] = manip.FindFreeBlock(
+                manip.GetFirstBlock(), block_size, mem_align, sme::IsSuitableForAllocation);
+
+            ASSERT_TRUE(found_block != nullptr);
+
+            auto found_block_pos = reinterpret_cast<uintptr_t>(found_block);
+            auto data_pos = found_block_pos + block_ofs + sme::kMemorySpaceBlockHeaderSize;
+
+            ASSERT_EQ((data_pos % mem_align), 0)
+                << "Data position: " << data_pos << ", alignment: " << mem_align;
+        }
+    }
 }

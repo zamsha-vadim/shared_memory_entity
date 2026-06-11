@@ -38,11 +38,10 @@ auto CreateTestMemorySpace(size_t size = some_memory.size()) -> sme::MemorySpace
 
 TEST(MemorySpaceTest, TestConstructor)
 {
-    sme::MemorySpace mem_space{sme::Pointer<void>{some_memory.data()},
-                               some_memory.size()};
+    sme::MemorySpace mem_space{sme::Pointer<void>{some_memory.data()}, some_memory.size()};
 
-    bool is_aligned = (reinterpret_cast<uintptr_t>(some_memory.data()) %
-                       sme::kMemorySpaceBlockAlign) == 0;
+    bool is_aligned =
+        (reinterpret_cast<uintptr_t>(some_memory.data()) % sme::kMemorySpaceBlockAlign) == 0;
 
     if (is_aligned) {
         EXPECT_EQ(mem_space.GetBaseAddress(), some_memory.data());
@@ -629,4 +628,30 @@ TEST(MemorySpaceTest, TestPostfixIteration)
     ASSERT_TRUE(iter == mem_space.end());
     ASSERT_FALSE(iter);
     ASSERT_TRUE(!iter);
+}
+
+TEST(MemorySpaceTest, TestAlignedAllocation)
+{
+    const auto kDataSizeStep = 50UL;
+    const auto kMaxDataSize = kSomeSpaceSize / 2;
+
+    for (auto data_size = 1UL; data_size <= kMaxDataSize; data_size += kDataSizeStep) {
+        auto mem_space = CreateTestMemorySpace();
+        auto mem_space_pos =
+            reinterpret_cast<uintptr_t>(mem_space.GetBaseAddress().GetAddress());
+
+        for (size_t mem_align = 2; mem_align != 0; mem_align <<= 1) {
+            auto dummy_ptr = mem_space.Allocate(1);
+            ASSERT_TRUE(dummy_ptr != nullptr);
+
+            auto aligned_ptr = mem_space.Allocate(data_size, mem_align);
+
+            ASSERT_TRUE(aligned_ptr != nullptr);
+            auto data_pos = reinterpret_cast<uintptr_t>(aligned_ptr.GetAddress());
+            ASSERT_TRUE((data_pos % mem_align) == 0);
+
+            if ((data_pos - mem_space_pos + data_size) >= (mem_space.GetCapacity() / 2))
+                break;
+        }
+    }
 }

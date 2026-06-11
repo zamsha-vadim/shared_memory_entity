@@ -25,8 +25,8 @@ struct alignas(kMemorySpaceBlockAlign) MemorySpaceBlock {
     auto operator=(MemorySpaceBlock&&) -> MemorySpaceBlock& = delete;
     ~MemorySpaceBlock() = default;
 
-    static constexpr auto GetMinBlockSize() noexcept -> size_t;
-    static constexpr auto GetMinDataSize() noexcept -> size_t;
+    static constexpr auto GetMinimumBlockSize() noexcept -> size_t;
+    static constexpr auto GetMinimumDataSize() noexcept -> size_t;
 
     static constexpr auto CalculateBlockSize(size_t data_size) noexcept -> Size;
     static constexpr auto CalculateAllocationDataSize(size_t data_size) noexcept -> Size;
@@ -43,7 +43,7 @@ struct alignas(kMemorySpaceBlockAlign) MemorySpaceBlock {
 
 constexpr auto kMemorySpaceBlockHeaderSize{offsetof(MemorySpaceBlock, data)};
 
-constexpr auto MemorySpaceBlock::GetMinBlockSize() noexcept -> size_t
+constexpr auto MemorySpaceBlock::GetMinimumBlockSize() noexcept -> size_t
 {
     constexpr auto kMinNotAlignedSize{kMemorySpaceBlockHeaderSize + 1};
 
@@ -52,9 +52,9 @@ constexpr auto MemorySpaceBlock::GetMinBlockSize() noexcept -> size_t
                        : kMinNotAlignedSize;
 }
 
-constexpr auto MemorySpaceBlock::GetMinDataSize() noexcept -> size_t
+constexpr auto MemorySpaceBlock::GetMinimumDataSize() noexcept -> size_t
 {
-    return (GetMinBlockSize() - kMemorySpaceBlockHeaderSize);
+    return (GetMinimumBlockSize() - kMemorySpaceBlockHeaderSize);
 }
 
 constexpr auto MemorySpaceBlock::CalculateBlockSize(size_t data_size) noexcept
