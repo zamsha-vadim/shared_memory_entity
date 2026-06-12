@@ -123,33 +123,6 @@ void MemoryDomain::Deallocate(Pointer<void>&& ptr) noexcept
     Deallocate(ptr);
 }
 
-auto MemoryDomain::GetAddressState(const Pointer<void>& ptr) const noexcept -> AddressState
-{
-    const std::lock_guard sync_guard{sync_};
-
-    for (auto segment = begin_segment_; segment != nullptr;
-         segment = segment->GetNextSegment()) {
-        auto block_type = segment->GetBlockType(ptr);
-
-        switch (block_type) {
-            case MemoryDomainBlock::Type::kFreeSmall:
-            case MemoryDomainBlock::Type::kFreeGeneric:
-                return AddressState::kFree;
-
-            case MemoryDomainBlock::Type::kUsed:
-                return AddressState::kUsed;
-
-            case MemoryDomainBlock::Type::kRedZone:
-                return AddressState::kOther;
-
-            default:
-                break;
-        }
-    }
-
-    return AddressState::kInvalid;
-}
-
 void MemoryDomain::DisableAllocationExtensible() noexcept
 {
     const std::lock_guard sync_guard{sync_};
@@ -165,7 +138,6 @@ void MemoryDomain::DisableAllocationExtensible() noexcept
 auto MemoryDomain::IsAllocationExtensible() const noexcept -> bool
 {
     const std::lock_guard sync_guard{sync_};
-
     return alloc_extensible_;
 }
 
@@ -302,6 +274,33 @@ void MemoryDomain::ReleaseAllSegments() noexcept
     }
 }
 
+auto MemoryDomain::GetAddressState(const Pointer<void>& ptr) const noexcept -> AddressState
+{
+    const std::lock_guard sync_guard{sync_};
+
+    for (auto segment = begin_segment_; segment != nullptr;
+         segment = segment->GetNextSegment()) {
+        auto block_type = segment->GetBlockType(ptr);
+
+        switch (block_type) {
+            case MemoryDomainBlock::Type::kFreeSmall:
+            case MemoryDomainBlock::Type::kFreeGeneric:
+                return AddressState::kFree;
+
+            case MemoryDomainBlock::Type::kUsed:
+                return AddressState::kUsed;
+
+            case MemoryDomainBlock::Type::kRedZone:
+                return AddressState::kOther;
+
+            default:
+                break;
+        }
+    }
+
+    return AddressState::kInvalid;
+}
+
 auto MemoryDomain::GetAllSegmentInfo() const -> std::deque<SegmentInfo>
 {
     std::deque<SegmentInfo> seg_infos;
@@ -317,6 +316,8 @@ auto MemoryDomain::GetAllSegmentInfo() const -> std::deque<SegmentInfo>
 
     return seg_infos;
 }
+
+// Public functions
 
 auto CreateMemoryDomain(MemorySpace& mem_space, SynchronizationType sync_type)
     -> Pointer<MemoryDomain>
