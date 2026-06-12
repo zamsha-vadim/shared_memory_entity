@@ -15,6 +15,8 @@ namespace sme {
 
 namespace {
 
+constexpr uint64_t kMemoryDomainCheckTypeId{0x9F6680B020F62};
+
 void ValidateMemorySpaceCapacity(const MemorySpace& mem_space)
 {
     if (mem_space.GetCapacity() < MemoryDomain::kMinimumCapacity)
@@ -22,6 +24,31 @@ void ValidateMemorySpaceCapacity(const MemorySpace& mem_space)
                                     std::to_string(MemoryDomain::kMinimumCapacity) +
                                     ". Argument memory size is " +
                                     std::to_string(mem_space.GetCapacity()));
+}
+
+void ValidateSizes(size_t data_size, size_t mem_align)
+{
+    if (data_size == 0)
+        throw std::invalid_argument("Allocation size must be greater 0");
+    if (data_size >= std::numeric_limits<MemoryDomain::Size>::max())
+        throw std::invalid_argument(
+            "Allocation size is greater " +
+            std::to_string(std::numeric_limits<MemoryDomain::Size>::max()));
+
+    if (mem_align == 0 || mem_align >= std::numeric_limits<MemoryDomain::Size>::max())
+        throw std::invalid_argument("Invalid alignment value");
+    if (mem_align > 1 && (mem_align % 2) != 0)
+        throw std::invalid_argument("Invalid alignment value: must be a power of 2");
+}
+
+void ReserveCapacity(MemoryDomain& mem_domain, size_t size)
+{
+    auto ptr = mem_domain.Allocate(size);
+    if (ptr == nullptr)
+        throw std::bad_alloc();
+
+    mem_domain.DisableAllocationExtensible();
+    mem_domain.Deallocate(ptr);
 }
 
 auto ConstructMemoryDomainSegment(void* mem, MemoryDomainSegment::Size mem_size)
@@ -43,29 +70,22 @@ void DeleteMemoryDomainSegment(Pointer<MemoryDomainSegment>& segment) noexcept
     segment.Reset();
 }
 
-void ValidateSizes(size_t data_size, size_t mem_align)
+[[nodiscard]] auto LockSynchronizer(Pointer<Synchronizer>& sync)
+    -> std::unique_lock<Synchronizer>
 {
-    if (data_size == 0)
-        throw std::invalid_argument("Allocation size must be greater 0");
-    if (data_size >= std::numeric_limits<MemoryDomain::Size>::max())
-        throw std::invalid_argument(
-            "Allocation size is greater " +
-            std::to_string(std::numeric_limits<MemoryDomain::Size>::max()));
-
-    if (mem_align == 0 || mem_align >= std::numeric_limits<MemoryDomain::Size>::max())
-        throw std::invalid_argument("Invalid alignment value");
-    if (mem_align > 1 && (mem_align % 2) != 0)
-        throw std::invalid_argument("Invalid alignment value: must be a power of 2");
+    return (sync != nullptr && sync->GetType() != SynchronizationType::kNone)
+               ? std::unique_lock<Synchronizer>{*sync}
+               : std::unique_lock<Synchronizer>{};
 }
-
-constexpr uint64_t kMemoryDomainCheckTypeId{0x9F6680B020F62};
 
 }  // namespace
 
 MemoryDomain::MemoryDomain(MemorySpace& mem_space, SynchronizationType sync_type)
     : kTypeCheckValue{kMemoryDomainCheckTypeId},
-      mem_space_{(ValidateMemorySpaceCapacity(mem_space), &mem_space)}, sync_{sync_type}
+      mem_space_{(ValidateMemorySpaceCapacity(mem_space), &mem_space)}
 {
+    if (sync_type != SynchronizationType::kNone)
+        sync_ = Create<Synchronizer>(*this, sync_type);
 }
 
 MemoryDomain::MemoryDomain(MemorySpace& mem_space,
@@ -73,18 +93,14 @@ MemoryDomain::MemoryDomain(MemorySpace& mem_space,
                            SynchronizationType sync_type)
     : MemoryDomain(mem_space, sync_type)
 {
-    auto ptr = Allocate(domain_size);
-    if (ptr == nullptr)
-        throw std::runtime_error("No free space");
-
-    DisableAllocationExtensible();
-
-    Deallocate(ptr);
+    ReserveCapacity(*this, domain_size);
 }
 
 MemoryDomain::~MemoryDomain()
 {
     ReleaseAllSegments();
+
+    Delete<Synchronizer>(*this, sync_);
 }
 
 auto MemoryDomain::IsValidObjectId(const MemoryDomain& obj) noexcept -> bool
@@ -96,10 +112,9 @@ auto MemoryDomain::Allocate(size_t data_size, size_t mem_align) -> Pointer<void>
 {
     ValidateSizes(data_size, mem_align);
 
-    const std::lock_guard sync_guard{sync_};
+    auto sync_guard = LockSynchronizer(sync_);
 
     auto block = AllocateBlock(data_size, mem_align);
-
     return (block != nullptr) ? Pointer<void>{block->GetData()} : Pointer<void>{};
 }
 
@@ -110,7 +125,7 @@ void MemoryDomain::Deallocate(Pointer<void>& ptr) noexcept
     assert((reinterpret_cast<uintptr_t>(ptr.GetAddress()) %
             MemoryDomainUseBlock::kDataAlign) == 0);
 
-    const std::lock_guard sync_guard{sync_};
+    auto sync_guard = LockSynchronizer(sync_);
 
     Pointer<MemoryDomainUseBlock> block = ptr - sizeof(MemoryDomainUseBlock);
     free_block_pool_.DeallocateUseBlock(block);
@@ -125,19 +140,17 @@ void MemoryDomain::Deallocate(Pointer<void>&& ptr) noexcept
 
 void MemoryDomain::DisableAllocationExtensible() noexcept
 {
-    const std::lock_guard sync_guard{sync_};
+    auto sync_guard = LockSynchronizer(sync_);
 
     if (!alloc_extensible_)
         return;
-
     ShrinkSegments();
-
     alloc_extensible_ = false;
 }
 
 auto MemoryDomain::IsAllocationExtensible() const noexcept -> bool
 {
-    const std::lock_guard sync_guard{sync_};
+    auto sync_guard = LockSynchronizer(sync_);
     return alloc_extensible_;
 }
 
@@ -276,7 +289,7 @@ void MemoryDomain::ReleaseAllSegments() noexcept
 
 auto MemoryDomain::GetAddressState(const Pointer<void>& ptr) const noexcept -> AddressState
 {
-    const std::lock_guard sync_guard{sync_};
+    auto sync_guard = LockSynchronizer(sync_);
 
     for (auto segment = begin_segment_; segment != nullptr;
          segment = segment->GetNextSegment()) {

@@ -187,7 +187,8 @@ MessageWriter::~MessageWriter() {}
 
 auto MessageWriter::CreateMessage() -> IntrusivePtr<Message>
 {
-    auto mem_domain = CreateMemoryDomain(data_layout_.memory_space);
+    auto mem_domain =
+        CreateMemoryDomain(data_layout_.memory_space, SynchronizationType::kNone);
     if (mem_domain == nullptr)
         throw std::bad_alloc{};
 

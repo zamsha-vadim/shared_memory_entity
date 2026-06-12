@@ -10,7 +10,7 @@
 
 namespace sme {
 
-enum class SynchronizationType : uint8_t {
+enum class SME_EXPORT SynchronizationType : uint8_t {
     kNone,
     kPrivateMutex,
     kSharedMutex,
@@ -21,12 +21,14 @@ class SME_EXPORT Synchronizer {
    public:
     explicit Synchronizer(SynchronizationType type);
 
+    auto GetType() const noexcept -> SynchronizationType;
+
     void lock();
     void unlock();
 
    private:
+    std::variant<AdaptiveSpinLock, Mutex, std::monostate> impl_;
     SynchronizationType type_{};
-    std::variant<std::monostate, Mutex, AdaptiveSpinLock> impl_;
 };
 
 }  // namespace sme

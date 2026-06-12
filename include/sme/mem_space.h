@@ -13,7 +13,8 @@
 #include "sme/sme_export.h"
 #include "sme/sync.h"
 
-// NOLINTBEGIN(modernize-use-nodiscard, google-explicit-constructor)
+// NOLINTBEGIN(modernize-use-nodiscard,
+// google-explicit-constructor,clang-analyzer-optin.performance.Padding)
 
 namespace sme {
 
@@ -130,6 +131,7 @@ constexpr auto MemorySpace::GetMinimumSpaceSize() noexcept -> size_t
 
 }  // namespace sme
 
-// NOLINTEND(modernize-use-nodiscard, google-explicit-constructor)
+// NOLINTEND(modernize-use-nodiscard,
+// google-explicit-constructor,clang-analyzer-optin.performance.Padding)
 
 #endif  // SME_MEM_SPACE_H

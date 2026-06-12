@@ -9,6 +9,7 @@
 #include <stdexcept>
 #include <utility>
 
+#include "sme/alloc_util.h"
 #include "sme/internal/mem_space_manip.h"
 
 // NOLINTBEGIN(cppcoreguidelines-pro-bounds-array-to-pointer-decay,
@@ -112,7 +113,7 @@ auto MemorySpace::Allocate(size_t size, size_t mem_align) -> Pointer<void>
         new_block.free = false;
         assert((reinterpret_cast<uintptr_t>(new_block.data) % mem_align) == 0);
 
-        [[maybe_unused]] auto& new_free_block = mem_manip_.SplitBlock(new_block, block_size);
+        (void)mem_manip_.SplitBlock(new_block, block_size);
 
         curr_block_ = suitable_block;
 

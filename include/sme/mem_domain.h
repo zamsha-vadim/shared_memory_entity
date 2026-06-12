@@ -20,7 +20,8 @@ class SME_EXPORT MemoryDomain {
    public:
     using Size = MemoryDomainBlock::Size;
 
-    static constexpr Size kMinimumCapacity{MemoryDomainBlock::GetMinimumBlockSize() +
+    static constexpr Size kMinimumCapacity{sizeof(Synchronizer) +
+                                           MemoryDomainBlock::GetMinimumBlockSize() +
                                            MemoryDomainRedZoneBlock::kBlockSize};
 
     enum class AddressState : uint8_t { kInvalid, kFree, kUsed, kOther };
@@ -81,7 +82,7 @@ class SME_EXPORT MemoryDomain {
     const uint64_t kTypeCheckValue;
 
     Pointer<MemorySpace> mem_space_;
-    mutable Synchronizer sync_;
+    mutable Pointer<Synchronizer> sync_;
 
     Pointer<MemoryDomainSegment> begin_segment_;
     MemoryDomainFreeBlockPool free_block_pool_;

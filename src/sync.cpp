@@ -7,7 +7,7 @@ namespace sme {
 
 namespace {
 
-using ImplementerType = std::variant<std::monostate, Mutex, AdaptiveSpinLock>;
+using ImplementerType = std::variant<AdaptiveSpinLock, Mutex, std::monostate>;
 
 void InitializeImplementer(ImplementerType& impl, SynchronizationType sync_type)
 {
@@ -34,35 +34,44 @@ Synchronizer::Synchronizer(SynchronizationType type) : type_{type}
     InitializeImplementer(impl_, type_);
 }
 
+auto Synchronizer::GetType() const noexcept -> SynchronizationType
+{
+    return type_;
+}
+
 void Synchronizer::lock()
 {
     switch (type_) {
+        case SynchronizationType::kAdaptiveSpinlock:
+            std::get<0>(impl_).lock();
+            return;
+
         case SynchronizationType::kPrivateMutex:
         case SynchronizationType::kSharedMutex:
             std::get<1>(impl_).lock();
-            break;
-        case SynchronizationType::kAdaptiveSpinlock:
-            std::get<2>(impl_).lock();
-            break;
-        default:
+            return;
+        
         case SynchronizationType::kNone:
-            break;
+        default:
+            return;
     }
 }
 
 void Synchronizer::unlock()
 {
     switch (type_) {
+        case SynchronizationType::kAdaptiveSpinlock:
+            std::get<0>(impl_).unlock();
+            return;
+
         case SynchronizationType::kPrivateMutex:
         case SynchronizationType::kSharedMutex:
             std::get<1>(impl_).unlock();
-            break;
-        case SynchronizationType::kAdaptiveSpinlock:
-            std::get<2>(impl_).unlock();
-            break;
-        default:
+            return;
+        
         case SynchronizationType::kNone:
-            break;
+        default:
+            return;
     }
 }
 

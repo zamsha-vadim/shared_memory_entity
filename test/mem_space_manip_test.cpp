@@ -523,8 +523,6 @@ TEST(MemorySpaceManipulatorTest, TestAlignedDataForFirstBlock)
                 (manip.GetCapacity() - sme::MemorySpaceBlock::GetMinimumBlockSize()))
                 break;
 
-            auto base_addr = manip.GetBaseAddress();
-
             auto [found_block, block_ofs] = manip.FindFreeBlock(
                 manip.GetFirstBlock(), block_size, mem_align, sme::IsSuitableForAllocation);
 

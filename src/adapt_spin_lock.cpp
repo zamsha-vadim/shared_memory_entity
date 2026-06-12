@@ -6,8 +6,9 @@
 
 #include <cassert>
 #include <ctime>
-#include <iostream>
 #include <thread>
+
+//#include <iostream>
 
 #include "sme/futex.h"
 #include "sme/internal/util.h"
@@ -116,9 +117,11 @@ AdaptiveSpinLock::~AdaptiveSpinLock()
 {
     assert(sync_var_.load() == 0);
 
+    /*
     std::clog << "AVG EXEC TIME=" << avg_exec_time_ << ", AVG ACQ TIME=" << avg_acq_time_
               << ", MAX_ACQ_TIME=" << max_acq_time_ << ", LOCKS=" << lock_count_
               << ", RESCHED=" << resched_count_ << std::endl;
+    */          
 }
 
 // NOLINTBEGIN(readability-function-cognitive-complexity)
