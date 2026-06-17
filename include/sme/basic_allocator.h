@@ -40,8 +40,9 @@ class SME_EXPORT AllocationContext final {
     bool acquired_{false};
 
     AreaPointer area_;
-    static thread_local AreaPointer
-        glob_area_;  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
+
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+    static thread_local AreaPointer glob_area_;
 };
 
 // class BasicAllocator

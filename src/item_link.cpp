@@ -31,7 +31,7 @@ auto GetNegativeOffsetFlag() noexcept -> uint64_t
 
 auto ExtractOffset(const ObjectOffset& ofs_ptr) noexcept -> ObjectOffset
 {
-    ObjectOffset ofs = ofs_ptr & kOffsetValueMask;
+    auto ofs = static_cast<ObjectOffset>(ofs_ptr & kOffsetValueMask);
     if ((ofs_ptr & GetNegativeOffsetFlag()) != 0) 
         ofs = -ofs;
     return ofs;
@@ -39,7 +39,7 @@ auto ExtractOffset(const ObjectOffset& ofs_ptr) noexcept -> ObjectOffset
 
 auto ExtractUseCounter(ObjectOffset ofs_ptr) noexcept -> UseCounter
 {
-    UseCounter counter = ((ofs_ptr & kCounterValueMask) >> kCounterValueShift);
+    const UseCounter counter = ((ofs_ptr & kCounterValueMask) >> kCounterValueShift);
     return counter;
 }
 
@@ -52,13 +52,13 @@ auto IncreaseUseCounter(ObjectOffset& ofs_ptr, UseCounter value) noexcept -> Use
 
     assert(counter >= 0);
 
-    ObjectOffset counter_view = static_cast<ObjectOffset>(counter) << kCounterValueShift;
-    bool is_ofs_negative = ((ofs_ptr & GetNegativeOffsetFlag()) != 0);
+    const ObjectOffset counter_view = static_cast<ObjectOffset>(counter) << kCounterValueShift;
+    const bool is_ofs_negative = ((ofs_ptr & GetNegativeOffsetFlag()) != 0);
 
     ofs_ptr &= kOffsetValueMask;
     ofs_ptr |= counter_view;
     if (is_ofs_negative)
-        ofs_ptr |= GetNegativeOffsetFlag();
+        ofs_ptr = static_cast<ObjectOffset>((ofs_ptr | GetNegativeOffsetFlag()));
     
     return counter;
 }

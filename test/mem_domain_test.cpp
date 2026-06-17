@@ -188,6 +188,137 @@ TEST(MemoryDomainTest, TestInvalidDeallocate)
 }
 */
 
+TEST(MemoryDomainTest, TestAlignedAllocationWithAllAlignments)
+{
+    auto mem_space = CreateTestMemorySpace();
+
+    const auto kDataSizeStep = 50UL;
+    const auto kMaxDataSize = mem_space.GetCapacity() / 2;
+
+    for (auto data_size = 1UL; data_size <= kMaxDataSize; data_size += kDataSizeStep) {
+        sme::MemoryDomain mem_domain{mem_space};
+
+        auto mem_space_pos =
+            reinterpret_cast<uintptr_t>(mem_space.GetBaseAddress().GetAddress());
+
+        for (size_t mem_align = 2; mem_align != 0; mem_align <<= 1) {
+            auto dummy_ptr = mem_domain.Allocate(1);
+            ASSERT_TRUE(dummy_ptr != nullptr);
+
+            auto aligned_ptr = mem_domain.Allocate(data_size, mem_align);
+
+            ASSERT_TRUE(aligned_ptr != nullptr)
+                << "Data size: " << data_size << ", alignment: " << mem_align;
+            auto data_pos = reinterpret_cast<uintptr_t>(aligned_ptr.GetAddress());
+            ASSERT_TRUE((data_pos % mem_align) == 0);
+
+            if ((data_pos - mem_space_pos + data_size) >= (mem_space.GetCapacity() / 2))
+                break;
+        }
+    }
+}
+
+TEST(MemoryDomainTest, TestAlignedAllocationSequentially)
+{
+    auto mem_space = CreateTestMemorySpace();
+
+    const size_t data_size{100};
+
+    for (size_t mem_align = 2; mem_align <= 1024; mem_align <<= 1) {
+        sme::MemoryDomain mem_domain{mem_space};
+
+        auto dummy_ptr = mem_domain.Allocate(1);
+        ASSERT_TRUE(dummy_ptr != nullptr);
+
+        sme::Pointer<void> aligned_ptr;
+
+        auto aligned_ptr1 = mem_domain.Allocate(data_size, mem_align);
+        ASSERT_TRUE(aligned_ptr1 != nullptr);
+
+        auto aligned_ptr2 = mem_domain.Allocate(data_size, mem_align);
+        ASSERT_TRUE(aligned_ptr2 != nullptr);
+
+        auto aligned_ptr3 = mem_domain.Allocate(data_size, mem_align);
+        ASSERT_TRUE(aligned_ptr3 != nullptr);
+
+        aligned_ptr = aligned_ptr2;
+        mem_domain.Deallocate(aligned_ptr2);
+        ASSERT_TRUE(aligned_ptr2 == nullptr);
+
+        aligned_ptr2 = mem_domain.Allocate(data_size, mem_align);
+        ASSERT_TRUE(aligned_ptr2 != nullptr);
+        ASSERT_TRUE(aligned_ptr2 == aligned_ptr);
+
+        aligned_ptr = aligned_ptr1;
+        mem_domain.Deallocate(aligned_ptr1);
+        ASSERT_TRUE(aligned_ptr1 == nullptr);
+
+        aligned_ptr1 = mem_domain.Allocate(data_size, mem_align);
+        ASSERT_TRUE(aligned_ptr1 != nullptr);
+        ASSERT_TRUE(aligned_ptr1 == aligned_ptr);
+
+        aligned_ptr = aligned_ptr3;
+        mem_domain.Deallocate(aligned_ptr3);
+        ASSERT_TRUE(aligned_ptr3 == nullptr);
+
+        aligned_ptr3 = mem_domain.Allocate(data_size, mem_align);
+        ASSERT_TRUE(aligned_ptr3 != nullptr);
+        ASSERT_TRUE(aligned_ptr3 == aligned_ptr);
+    }
+}
+
+TEST(MemoryDomainTest, TestAlignedAllocationSequentiallyInterleavedWithUnaligned)
+{
+    auto mem_space = CreateTestMemorySpace();
+
+    const size_t data_size{100};
+
+    for (size_t mem_align = 2; mem_align <= 1024; mem_align <<= 1) {
+        sme::MemoryDomain mem_domain{mem_space};
+
+        sme::Pointer<void> aligned_ptr;
+
+        ASSERT_TRUE(mem_domain.Allocate(1) != nullptr);
+
+        auto aligned_ptr1 = mem_domain.Allocate(data_size, mem_align);
+        ASSERT_TRUE(aligned_ptr1 != nullptr);
+
+        ASSERT_TRUE(mem_domain.Allocate(1) != nullptr);
+
+        auto aligned_ptr2 = mem_domain.Allocate(data_size, mem_align);
+        ASSERT_TRUE(aligned_ptr2 != nullptr);
+
+        ASSERT_TRUE(mem_domain.Allocate(1) != nullptr);
+
+        auto aligned_ptr3 = mem_domain.Allocate(data_size, mem_align);
+        ASSERT_TRUE(aligned_ptr3 != nullptr);
+
+        aligned_ptr = aligned_ptr2;
+        mem_domain.Deallocate(aligned_ptr2);
+        ASSERT_TRUE(aligned_ptr2 == nullptr);
+
+        aligned_ptr2 = mem_domain.Allocate(data_size, mem_align);
+        ASSERT_TRUE(aligned_ptr2 != nullptr);
+        ASSERT_TRUE(aligned_ptr2 == aligned_ptr);
+
+        aligned_ptr = aligned_ptr1;
+        mem_domain.Deallocate(aligned_ptr1);
+        ASSERT_TRUE(aligned_ptr1 == nullptr);
+
+        aligned_ptr1 = mem_domain.Allocate(data_size, mem_align);
+        ASSERT_TRUE(aligned_ptr1 != nullptr);
+        ASSERT_TRUE(aligned_ptr1 == aligned_ptr);
+
+        aligned_ptr = aligned_ptr3;
+        mem_domain.Deallocate(aligned_ptr3);
+        ASSERT_TRUE(aligned_ptr3 == nullptr);
+
+        aligned_ptr3 = mem_domain.Allocate(data_size, mem_align);
+        ASSERT_TRUE(aligned_ptr3 != nullptr);
+        ASSERT_TRUE(aligned_ptr3 == aligned_ptr);
+    }
+}
+
 TEST(MemoryDomainTest, TestAddressState)
 {
     auto mem_space = CreateTestMemorySpace();

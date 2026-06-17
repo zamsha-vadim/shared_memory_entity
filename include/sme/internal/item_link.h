@@ -2,11 +2,11 @@
 #define SME_INTERNAL_ITEM_LINK_H
 
 #include <atomic>
-#include <cstddef>
 #include <new>
 #include <type_traits>
 
 #include "sme/internal/ref_count.h"
+#include "sme/internal/type.h"
 
 // NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast,
 // cppcoreguidelines-pro-type-const-cast,)
@@ -15,8 +15,6 @@ namespace sme {
 
 using ObjectOffset = std::ptrdiff_t;
 using UseCounter = uint16_t;
-
-constexpr auto kDWCASAlign{16U};
 
 struct alignas(kDWCASAlign) ItemLink final {
     ObjectOffset basic{0};

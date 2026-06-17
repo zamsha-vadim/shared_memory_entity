@@ -7,43 +7,72 @@ namespace sme {
 
 namespace {
 
-auto CreateOptionalMutex(Synchronizer::Type sync_type) -> std::optional<Mutex>
+using ImplementerType = std::variant<AdaptiveSpinLock, Mutex, std::monostate>;
+
+void InitializeImplementer(ImplementerType& impl, SynchronizationType sync_type)
 {
     switch (sync_type) {
-        case Synchronizer::Type::kNone:
-            return {};
-
-        case Synchronizer::Type::kPrivate:
-            return std::optional<Mutex>{std::in_place, InterprocessVisibility::kPrivate};
-
-        case Synchronizer::Type::kShared:
-            return std::optional<Mutex>{std::in_place, InterprocessVisibility::kShared};
-
+        case SynchronizationType::kPrivateMutex:
+            impl.emplace<Mutex>(InterprocessVisibility::kPrivate);
+            break;
+        case SynchronizationType::kSharedMutex:
+            impl.emplace<Mutex>(InterprocessVisibility::kShared);
+            break;
+        case SynchronizationType::kAdaptiveSpinlock:
+            impl.emplace<AdaptiveSpinLock>();
+            break;
         default:
-            throw std::logic_error("Not supported synchronization type");
+        case SynchronizationType::kNone:
+            break;
     }
 }
 
 }  // namespace
 
-Synchronizer::Synchronizer(Type type) : mutex_{CreateOptionalMutex(type)} {}
+Synchronizer::Synchronizer(SynchronizationType type) : type_{type}
+{
+    InitializeImplementer(impl_, type_);
+}
+
+auto Synchronizer::GetType() const noexcept -> SynchronizationType
+{
+    return type_;
+}
 
 void Synchronizer::lock()
 {
-    if (mutex_)
-        mutex_->lock();
-}
+    switch (type_) {
+        case SynchronizationType::kAdaptiveSpinlock:
+            std::get<0>(impl_).lock();
+            return;
 
-auto Synchronizer::try_lock() -> bool
-{
-    return (mutex_ ? mutex_->try_lock() : true);
+        case SynchronizationType::kPrivateMutex:
+        case SynchronizationType::kSharedMutex:
+            std::get<1>(impl_).lock();
+            return;
+        
+        case SynchronizationType::kNone:
+        default:
+            return;
+    }
 }
 
 void Synchronizer::unlock()
 {
-    if (mutex_)
-        mutex_->unlock();
+    switch (type_) {
+        case SynchronizationType::kAdaptiveSpinlock:
+            std::get<0>(impl_).unlock();
+            return;
+
+        case SynchronizationType::kPrivateMutex:
+        case SynchronizationType::kSharedMutex:
+            std::get<1>(impl_).unlock();
+            return;
+        
+        case SynchronizationType::kNone:
+        default:
+            return;
+    }
 }
 
 }  // namespace sme
-

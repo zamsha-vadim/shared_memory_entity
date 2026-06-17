@@ -9,6 +9,7 @@
 #include <stdexcept>
 #include <utility>
 
+#include "sme/alloc_util.h"
 #include "sme/internal/mem_space_manip.h"
 
 // NOLINTBEGIN(cppcoreguidelines-pro-bounds-array-to-pointer-decay,
@@ -24,7 +25,7 @@ void CheckPointerForNull(const Pointer<void>& ptr)
         throw std::invalid_argument("Pointer is null");
 }
 
-void CheckSizeForZero(size_t size)
+void CheckSizes(size_t size, size_t /*mem_align*/)
 {
     if (size == 0)
         throw std::invalid_argument("Allocation size must be greater 0");
@@ -54,9 +55,7 @@ const MemorySpaceBlockMatcher g_free_block_matcher{&IsSuitableForAllocation};
 
 }  // namespace
 
-MemorySpace::MemorySpace(const Pointer<void>& mem,
-                         size_t size,
-                         Synchronizer::Type sync_type)
+MemorySpace::MemorySpace(const Pointer<void>& mem, size_t size, SynchronizationType sync_type)
     : kTypeCheckValue{kMemorySpaceCheckTypeId}, sync_{sync_type}, mem_manip_{mem, size},
       curr_block_{&mem_manip_.GetFirstBlock()}
 {
@@ -82,52 +81,85 @@ auto MemorySpace::GetCapacity() const noexcept -> size_t
     return mem_manip_.GetCapacity();
 }
 
-auto MemorySpace::Allocate(size_t size) -> Pointer<void>
+auto MemorySpace::Allocate(size_t size, size_t mem_align) -> Pointer<void>
 {
-    CheckSizeForZero(size);
+    CheckSizes(size, mem_align);
 
     auto block_size = MemorySpaceBlock::CalculateBlockSize(size);
     const auto& matcher{g_free_block_matcher};
 
     std::lock_guard lg{sync_};
 
-    Block* suitable_block =
-        mem_manip_.FindFreeBlock(*curr_block_, block_size, matcher, true);
+    auto [suitable_block, block_ofs] =
+        mem_manip_.FindFreeBlock(*curr_block_, block_size, mem_align, matcher, true);
     if (suitable_block == nullptr)
         return {};
 
-    if (suitable_block->size > (block_size + MemorySpaceBlock::GetMinBlockSize())) {
-        auto& new_free_block = mem_manip_.SplitBlock(*suitable_block, block_size);
-        curr_block_ = &new_free_block;
+    Pointer<void> res_ptr;
+
+    if (block_ofs == 0) {
+        if (suitable_block->size > (block_size + MemorySpaceBlock::GetMinimumBlockSize())) {
+            auto& new_free_block = mem_manip_.SplitBlock(*suitable_block, block_size);
+            curr_block_ = &new_free_block;
+        } else {
+            curr_block_ = suitable_block;
+        }
+
+        suitable_block->free = false;
+
+        res_ptr = Pointer<void>{suitable_block->data};
     } else {
+        auto& new_block = mem_manip_.SplitBlock(*suitable_block, block_ofs);
+        new_block.free = false;
+        assert((reinterpret_cast<uintptr_t>(new_block.data) % mem_align) == 0);
+
+        (void)mem_manip_.SplitBlock(new_block, block_size);
+
         curr_block_ = suitable_block;
+
+        res_ptr = Pointer<void>{new_block.data};
     }
 
-    suitable_block->free = false;
-
-    return Pointer<void>{suitable_block->data};
+    return res_ptr;
 }
 
-auto MemorySpace::AllocateAtLeast(size_t size) -> std::pair<Pointer<void>, size_t>
+auto MemorySpace::AllocateAtLeast(size_t size, size_t mem_align)
+    -> std::pair<Pointer<void>, size_t>
 {
-    CheckSizeForZero(size);
+    CheckSizes(size, mem_align);
 
     auto block_size = MemorySpaceBlock::CalculateBlockSize(size);
     const auto& matcher{g_free_block_matcher};
 
     std::lock_guard lg{sync_};
 
-    Block* suitable_block =
-        mem_manip_.FindFreeBlock(*curr_block_, block_size, matcher, true);
+    auto [suitable_block, block_ofs] =
+        mem_manip_.FindFreeBlock(*curr_block_, block_size, mem_align, matcher, true);
     if (suitable_block == nullptr)
         return {};
 
-    suitable_block->free = false;
+    Pointer<void> res_ptr;
+    size_t data_size{};
 
-    curr_block_ = suitable_block;
+    if (block_ofs == 0) {
+        suitable_block->free = false;
 
-    auto data_size = mem_manip_.GetBlockDataSize(*suitable_block);
-    return {Pointer<void>{suitable_block->data}, data_size};
+        curr_block_ = suitable_block;
+
+        res_ptr = Pointer<void>{suitable_block->data};
+        data_size = mem_manip_.GetBlockDataSize(*suitable_block);
+    } else {
+        auto& new_block = mem_manip_.SplitBlock(*suitable_block, block_ofs);
+        new_block.free = false;
+        assert((reinterpret_cast<uintptr_t>(new_block.data) % mem_align) == 0);
+
+        curr_block_ = suitable_block;
+
+        res_ptr = Pointer<void>{new_block.data};
+        data_size = mem_manip_.GetBlockDataSize(new_block);
+    }
+
+    return {res_ptr, data_size};
 }
 
 auto MemorySpace::Resize(Pointer<void> ptr, size_t new_size) -> bool
@@ -289,8 +321,8 @@ auto MemorySpace::Iterator::GetValue() const -> value_type
     return (iter_block_ != nullptr)
                ? MemorySpace::AllocationInfo{.block = iter_block_,
                                              .data = iter_block_->data,
-                                             .position = mem_manip_->GetBlockPosition(
-                                                 *iter_block_),
+                                             .position =
+                                                 mem_manip_->GetBlockPosition(*iter_block_),
                                              .size = iter_block_->size,
                                              .free = iter_block_->free}
                : MemorySpace::AllocationInfo{};

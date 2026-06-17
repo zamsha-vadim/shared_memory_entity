@@ -35,6 +35,53 @@ namespace {
 
 }  // namespace
 
+auto IsSuitableForAllocation(const MemorySpaceBlock& src_block,
+                             MemorySpaceBlock::Size block_size,
+                             size_t mem_align) noexcept
+    -> std::pair<bool, MemorySpaceBlock::Position>
+{
+    bool suitable = (src_block.free && (block_size <= src_block.size));
+    MemorySpaceBlock::Position block_ofs{0};
+
+    if (suitable && mem_align > 1) {
+        auto src_data_pos = reinterpret_cast<uintptr_t>(src_block.data);
+
+        auto align_remainder = src_data_pos % mem_align;
+
+        suitable = (align_remainder == 0);
+        if (!suitable) {
+            src_data_pos += mem_align - align_remainder;
+
+            auto src_block_begin_pos = reinterpret_cast<uintptr_t>(&src_block);
+            auto src_block_end_pos = src_block_begin_pos + src_block.size;
+
+            auto block_begin_pos = src_data_pos - kMemorySpaceBlockHeaderSize;
+            while ((block_begin_pos - src_block_begin_pos) <
+                   MemorySpaceBlock::GetMinimumBlockSize()) {
+                block_begin_pos += mem_align;
+            }
+
+            auto block_end_pos = block_begin_pos + block_size;
+
+            assert((block_begin_pos % kMemorySpaceBlockAlign) == 0);
+            assert((block_end_pos % kMemorySpaceBlockAlign) == 0);
+
+            if (block_end_pos > src_block_end_pos)
+                return {false, 0};
+
+            block_ofs = block_begin_pos - src_block_begin_pos;
+            assert((block_ofs % kMemorySpaceBlockAlign) == 0);
+            assert(block_ofs >= MemorySpaceBlock::GetMinimumBlockSize());
+
+            suitable = true;
+        }
+    }
+
+    return {suitable, block_ofs};
+}
+
+// class MemorySpaceManipulator
+
 MemorySpaceManipulator::MemorySpaceManipulator(const Pointer<void>& mem,
                                                size_t size,
                                                bool zeroed)
@@ -44,9 +91,9 @@ MemorySpaceManipulator::MemorySpaceManipulator(const Pointer<void>& mem,
 
     std::tie(mem_, mem_size_) = AlignBaseLocation(mem, size);
 
-    if (mem_ == nullptr || mem_size_ < MemorySpaceBlock::GetMinBlockSize())
+    if (mem_ == nullptr || mem_size_ < MemorySpaceBlock::GetMinimumBlockSize())
         throw std::invalid_argument("Memory size must be greater " +
-                                    std::to_string(MemorySpaceBlock::GetMinBlockSize()));
+                                    std::to_string(MemorySpaceBlock::GetMinimumBlockSize()));
     if (zeroed)
         std::memset(mem_.GetAddress(), 0, mem_size_);
 
@@ -127,13 +174,13 @@ auto MemorySpaceManipulator::UniteFreeBlocks(Block& src_block) noexcept -> Block
     return first_free_block;
 }
 
-auto MemorySpaceManipulator::SplitBlock(Block& src_block,
-                                        Size primary_block_size) noexcept -> Block&
+auto MemorySpaceManipulator::SplitBlock(Block& src_block, Size primary_block_size) noexcept
+    -> Block&
 {
     assert(IsLocationValid(src_block));
 
     assert(primary_block_size > kMemorySpaceBlockHeaderSize);
-    assert((primary_block_size + MemorySpaceBlock::GetMinBlockSize()) <= src_block.size);
+    assert((primary_block_size + MemorySpaceBlock::GetMinimumBlockSize()) <= src_block.size);
 
     auto& src_next_block = GetNextBlock(src_block);
 
@@ -191,8 +238,7 @@ auto MemorySpaceManipulator::GetNextBlock(const Block& block) noexcept -> Block&
     assert(next_block_addr <= (mem_.GetAddress() + mem_size_));
 
     return (next_block_addr < (mem_.GetAddress() + mem_size_))
-               ? *std::launder(
-                     reinterpret_cast<Block*>(const_cast<char*>(next_block_addr)))
+               ? *std::launder(reinterpret_cast<Block*>(const_cast<char*>(next_block_addr)))
                : *first_block_;
 }
 
@@ -202,14 +248,12 @@ auto MemorySpaceManipulator::GetPreviousBlock(const Block& block) noexcept -> Bl
 
     char* prev_block_addr = mem_.GetAddress() + block.prev_block_pos;
     assert(mem_.GetAddress() <= prev_block_addr &&
-           prev_block_addr <
-               (mem_.GetAddress() + mem_size_ - kMemorySpaceBlockHeaderSize));
+           prev_block_addr < (mem_.GetAddress() + mem_size_ - kMemorySpaceBlockHeaderSize));
 
     return *std::launder(reinterpret_cast<Block*>(prev_block_addr));
 }
 
-auto MemorySpaceManipulator::GetBlockPosition(const Block& block) const noexcept
-    -> Position
+auto MemorySpaceManipulator::GetBlockPosition(const Block& block) const noexcept -> Position
 {
     assert(IsLocationValid(block));
 
@@ -223,8 +267,8 @@ auto MemorySpaceManipulator::GetBlockDataSize(const Block& block) const noexcept
     return block.GetDataSize();
 }
 
-auto MemorySpaceManipulator::GetBlockByDataAddress(
-    const Pointer<void>& data_addr) noexcept -> Block*
+auto MemorySpaceManipulator::GetBlockByDataAddress(const Pointer<void>& data_addr) noexcept
+    -> Block*
 {
     if (!data_addr)
         return nullptr;
@@ -247,8 +291,10 @@ auto MemorySpaceManipulator::IsLocationValid(const Block& block) const noexcept 
 
 auto MemorySpaceManipulator::FindFreeBlock(Block& start_block,
                                            Size block_size,
+                                           size_t mem_align,
                                            const MemorySpaceBlockMatcher& matcher,
-                                           bool unite_free) noexcept -> Block*
+                                           bool unite_free) noexcept
+    -> std::pair<Block*, Position>
 {
     assert(IsLocationValid(start_block));
 
@@ -272,14 +318,17 @@ auto MemorySpaceManipulator::FindFreeBlock(Block& start_block,
                 assert(iter_block != nullptr);
             }
 
-            if (iter_block->free && matcher(*iter_block, block_size))
-                return iter_block;
+            if (iter_block->free) {
+                auto [suitable, block_pos] = matcher(*iter_block, block_size, mem_align);
+                if (suitable)
+                    return {iter_block, block_pos};
+            }
         }
 
         iter_block = &GetNextBlock(*iter_block);
     } while (iter_block != &start_block);
 
-    return nullptr;
+    return {nullptr, 0};
 }
 
 }  // namespace sme

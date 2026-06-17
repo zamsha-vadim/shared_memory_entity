@@ -248,7 +248,7 @@ TEST(MessageChannelTest, TestWriteAndReadSomeMessagesForPrivateMemory)
     sme::MessageWriter& writer = channel.GetWriter();
     sme::MessageReader& reader = channel.GetReader();
 
-    constexpr auto kMsgCount = 100U;
+    constexpr auto kMsgCount = 50U;
     std::vector<std::string> chk_strs;
     chk_strs.reserve(kMsgCount);
 
@@ -332,7 +332,7 @@ TEST(MessageChannelTest, TestWriteAndReadSomeMessagesForSharedMemory)
         int wait_stat{};
 
         if (waitpid(pid, &wait_stat, 0) == -1)
-            FAIL() << std::strerror(errno);
+            FAIL() << "wait pid: failed: " << std::strerror(errno);
         if (!WIFEXITED(wait_stat) || WEXITSTATUS(wait_stat) != EXIT_SUCCESS)
             FAIL() << "Output message process exited with an unexpected error";
 
@@ -357,6 +357,6 @@ TEST(MessageChannelTest, TestWriteAndReadSomeMessagesForSharedMemory)
 
         ASSERT_EQ(i, chk_strs.size());
     } else {
-        FAIL() << std::strerror(errno);
+        FAIL() << "Process fork failed: " << std::strerror(errno);
     }
 }

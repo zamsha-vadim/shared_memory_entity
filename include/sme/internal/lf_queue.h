@@ -3,26 +3,11 @@
 
 #include <atomic>
 #include <chrono>
-#include <cstddef>
-#include <new>
 #include <utility>
 
 #include "sme/internal/item_link.h"
 #include "sme/internal/queue_res.h"
 #include "sme/sme_export.h"
-
-#if defined(__x86_64__)
-#if !defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_16)
-#error \
-    " the target processor doen't support atomic compare and swap operations on operands 16 bytes in length"
-#endif
-#endif
-
-#ifdef __cpp_lib_hardware_interference_size
-constexpr size_t kCacheLineSize = std::hardware_constructive_interference_size;
-#else
-constexpr size_t kCacheLineSize = 64;
-#endif
 
 namespace sme {
 

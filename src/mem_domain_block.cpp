@@ -11,8 +11,7 @@ MemoryDomainBlock::MemoryDomainBlock(Type type,
                                      Size block_size,
                                      Size prev_block_ofs,
                                      bool is_last)
-    : type_{type}, is_last_{is_last}, block_size_{block_size}, prev_block_ofs_{
-                                                                   prev_block_ofs}
+    : type_{type}, is_last_{is_last}, block_size_{block_size}, prev_block_ofs_{prev_block_ofs}
 {
     assert(GetBlockSize() >= GetMinimumBlockSize());
     assert((GetBlockSize() % kBlockAlign) == 0);
@@ -45,8 +44,7 @@ auto MemoryDomainBlock::GetPreviousBlock() noexcept -> Pointer<MemoryDomainBlock
     return GetPreviousBlockAddress();
 }
 
-auto MemoryDomainBlock::GetNextBlock() const noexcept
-    -> const Pointer<const MemoryDomainBlock>
+auto MemoryDomainBlock::GetNextBlock() const noexcept -> const Pointer<const MemoryDomainBlock>
 {
     return GetNextBlockAddress();
 }
@@ -119,9 +117,7 @@ auto IsRedZone(const MemoryDomainBlock& block) noexcept -> bool
 
 // MemoryDomainUseBlock class
 
-MemoryDomainUseBlock::MemoryDomainUseBlock(Size block_size,
-                                           Size prev_block_ofs,
-                                           bool is_last)
+MemoryDomainUseBlock::MemoryDomainUseBlock(Size block_size, Size prev_block_ofs, bool is_last)
     : MemoryDomainBlock{Type::kUsed, block_size, prev_block_ofs, is_last}
 {
 }
@@ -141,8 +137,7 @@ auto MemoryDomainUseBlock::GetDataSize() const noexcept -> Size
     return GetDataCapacityAt(*this);
 }
 
-auto MemoryDomainUseBlock::GetDataCapacityAt(const MemoryDomainBlock& block) noexcept
-    -> Size
+auto MemoryDomainUseBlock::GetDataCapacityAt(const MemoryDomainBlock& block) noexcept -> Size
 {
     return block.GetBlockSize() - sizeof(MemoryDomainUseBlock);
 }
@@ -161,6 +156,7 @@ auto MemoryDomainUseBlock::CalculateBlockSizeForData(Size data_size) noexcept ->
     auto block_size_rest = block_size % kMemoryDomainBlockAlign;
     if (block_size_rest != 0)
         block_size += kMemoryDomainBlockAlign - block_size_rest;
+
     return block_size;
 }
 
@@ -183,8 +179,7 @@ void MemoryDomainFreeBlock::SetPreviousFreeBlock(
     free_prev_block_ = std::move(prev_block);
 }
 
-auto MemoryDomainFreeBlock::GetNextFreeBlock() const noexcept
-    -> Pointer<MemoryDomainFreeBlock>
+auto MemoryDomainFreeBlock::GetNextFreeBlock() const noexcept -> Pointer<MemoryDomainFreeBlock>
 {
     return free_next_block_;
 }
@@ -207,20 +202,59 @@ void MemoryDomainFreeBlock::UnlinkFreeBlockRelations() noexcept
     free_next_block_.Reset();
 }
 
-auto MemoryDomainFreeBlock::CanBeSplittedForUse(
-    MemoryDomainBlock::Size used_block_size) const noexcept -> bool
+auto MemoryDomainFreeBlock::CanBeSplittedForUseBlock(Size block_size,
+                                                     Size mem_align) const noexcept
+    -> std::pair<bool, Position>
 {
-    return CanBeSplittedForUse(GetBlockSize(), used_block_size);
+    Size free_block_size = GetBlockSize();
+
+    if (block_size > free_block_size)
+        return {false, 0};
+
+    if (mem_align > MemoryDomainUseBlock::kDataAlign) {
+        auto free_block_begin_pos = reinterpret_cast<uintptr_t>(this);
+        auto free_block_end_pos = free_block_begin_pos + free_block_size;
+
+        auto block_data_pos = free_block_begin_pos + sizeof(MemoryDomainUseBlock);
+
+        auto align_remainder = block_data_pos % mem_align;
+        if (align_remainder != 0) {
+            block_data_pos += mem_align - align_remainder;
+
+            auto block_begin_pos = block_data_pos - sizeof(MemoryDomainUseBlock);
+            while ((block_begin_pos - free_block_begin_pos) <
+                   MemoryDomainBlock::GetMinimumBlockSize()) {
+                block_begin_pos += mem_align;
+            }
+
+            auto block_end_pos = block_begin_pos + block_size;
+
+            assert((block_begin_pos % kMemoryDomainBlockAlign) == 0);
+            assert((block_end_pos % kMemoryDomainBlockAlign) == 0);
+
+            if (block_end_pos > free_block_end_pos)
+                return {false, 0};
+
+            auto block_ofs = block_begin_pos - free_block_begin_pos;
+            assert((block_ofs % kMemoryDomainBlockAlign) == 0);
+            assert(block_ofs >= MemoryDomainBlock::GetMinimumBlockSize());
+
+            return {true, block_ofs};
+        }
+    }
+
+    auto res = CanBeSplittedForUseBlock(block_size);
+    return {res, 0};
 }
 
-auto MemoryDomainFreeBlock::CanBeSplittedForUse(
-    MemoryDomainBlock::Size free_block_size,
-    MemoryDomainBlock::Size used_block_size) noexcept -> bool
+auto MemoryDomainFreeBlock::CanBeSplittedForUseBlock(Size block_size) const noexcept -> bool
 {
-    return (used_block_size > 0) && ((free_block_size == used_block_size) ||
-                                     ((free_block_size > used_block_size) &&
-                                      (used_block_size - free_block_size) >=
-                                          MemoryDomainBlock::GetMinimumBlockSize()));
+    Size free_block_size = GetBlockSize();
+
+    return block_size >= MemoryDomainBlock::GetMinimumBlockSize() &&
+           (free_block_size == block_size ||
+            (free_block_size > block_size &&
+             (free_block_size - block_size) >= MemoryDomainBlock::GetMinimumBlockSize()));
 }
 
 // MemoryDomainRedZoneBlock class
@@ -296,16 +330,17 @@ auto MemoryDomainFreeBlockPool::GetFirstFreeGenericBlock() const noexcept
     return first_gen_block_;
 }
 
-auto MemoryDomainFreeBlockPool::AllocateUseBlock(
-    MemoryDomainBlock::Size data_size) noexcept -> Pointer<MemoryDomainUseBlock>
+auto MemoryDomainFreeBlockPool::AllocateUseBlock(MemoryDomainBlock::Size data_size,
+                                                 MemoryDomainBlock::Size mem_align) noexcept
+    -> Pointer<MemoryDomainUseBlock>
 {
     Pointer<MemoryDomainUseBlock> used_block;
 
-    auto alloc_block_size = MemoryDomainUseBlock::CalculateBlockSizeForData(data_size);
+    auto block_size = MemoryDomainUseBlock::CalculateBlockSizeForData(data_size);
 
-    if ((alloc_block_size > MemoryDomainBlock::GetMinimumBlockSize()) ||
-        (first_small_block_ == nullptr))
-        used_block = AllocateUseBlockFromSuitableGenericBlock(alloc_block_size);
+    if (block_size > MemoryDomainBlock::GetMinimumBlockSize() ||
+        first_small_block_ == nullptr || mem_align > alignof(std::max_align_t))
+        used_block = AllocateUseBlockFromSuitableGenericBlock(data_size, mem_align);
     else
         used_block = AllocateUseBlockFromSuitableSmallBlock();
 
@@ -410,77 +445,140 @@ auto MemoryDomainFreeBlockPool::AllocateUseBlockFromSuitableSmallBlock() noexcep
 }
 
 auto MemoryDomainFreeBlockPool::AllocateUseBlockFromSuitableGenericBlock(
-    MemoryDomainBlock::Size block_size) noexcept -> Pointer<MemoryDomainUseBlock>
+    MemoryDomainBlock::Size data_size,
+    MemoryDomainBlock::Size mem_align) noexcept -> Pointer<MemoryDomainUseBlock>
 {
-    auto free_block = FindSuitableFreeGenericBlock(block_size);
+    auto block_size = MemoryDomainUseBlock::CalculateBlockSizeForData(data_size);
+
+    auto [free_block, block_ofs] = FindSuitableFreeGenericBlock(block_size, mem_align);
     if (free_block == nullptr)
         return {};
-    return AllocateUseBlockFromGenericBlock(*free_block, block_size);
+    return AllocateUseBlockFromGenericBlock(*free_block, block_size, block_ofs);
 }
 
 auto MemoryDomainFreeBlockPool::FindSuitableFreeGenericBlock(
-    MemoryDomainBlock::Size block_size) noexcept -> Pointer<MemoryDomainFreeGenericBlock>
+    MemoryDomainBlock::Size block_size,
+    MemoryDomainBlock::Size mem_align) noexcept
+    -> std::pair<MemoryDomainFreeGenericBlock*, MemoryDomainBlock::Position>
 {
-    Pointer<MemoryDomainFreeGenericBlock> matched_block;
+    if (mem_align <= MemoryDomainUseBlock::kDataAlign) {
+        Pointer<MemoryDomainFreeGenericBlock> matched_block;
 
-    for (auto block = first_gen_block_; block != nullptr;
-         block = block->GetGreaterFreeBlock()) {
-        if (block->CanBeSplittedForUse(block_size))
-            return block;
-        if ((block->GetBlockSize() > block_size) && (matched_block == nullptr))
-            matched_block = block;
+        for (auto free_block = first_gen_block_; free_block != nullptr;
+             free_block = free_block->GetGreaterFreeBlock()) {
+            auto [splittable, block_ofs] =
+                free_block->CanBeSplittedForUseBlock(block_size, mem_align);
+            if (splittable)
+                return {free_block.GetAddress(), block_ofs};
+
+            if ((matched_block == nullptr) && (free_block->GetBlockSize() > block_size))
+                matched_block = free_block;
+        }
+
+        return {matched_block.GetAddress(), 0};
     }
 
-    return matched_block;
+    for (auto free_block = first_gen_block_; free_block != nullptr;
+         free_block = free_block->GetGreaterFreeBlock()) {
+        auto [splittable, block_ofs] =
+            free_block->CanBeSplittedForUseBlock(block_size, mem_align);
+        if (splittable)
+            return {free_block.GetAddress(), block_ofs};
+
+        /*
+        for (auto sibl_free_block = free_block->GetNextFreeBlock();
+             sibl_free_block != nullptr;
+             sibl_free_block = sibl_free_block->GetNextFreeBlock()) {
+            auto [splittable, block_ofs] =
+                free_block->CanBeSplittedForUseBlock(block_size, mem_align);
+            if (splittable)
+                return {free_block.GetAddress(), block_ofs};
+        }
+        */
+    }
+
+    return {nullptr, 0};
 }
 
 auto MemoryDomainFreeBlockPool::AllocateUseBlockFromGenericBlock(
     MemoryDomainFreeGenericBlock& src_block,
-    MemoryDomainBlock::Size block_size) noexcept -> Pointer<MemoryDomainUseBlock>
+    MemoryDomainBlock::Size block_size,
+    MemoryDomainBlock::Position block_ofs) noexcept -> Pointer<MemoryDomainUseBlock>
 {
     assert(block_size > sizeof(MemoryDomainUseBlock));
-    assert((block_size % MemoryDomainUseBlock::kDataSizeStep) == 0);
-    assert(src_block.CanBeSplittedForUse(block_size));
+    assert((block_size % kMemoryDomainBlockAlign) == 0);
+
+    Pointer<MemoryDomainUseBlock> used_block;
 
     auto src_block_size = src_block.GetBlockSize();
-    auto new_free_block_size = src_block_size - block_size;
-    if (new_free_block_size < MemoryDomainBlock::GetMinimumBlockSize()) {
-        block_size = src_block_size;
-        new_free_block_size = 0;
+
+    if (block_ofs == 0) {
+        auto new_free_block_size = src_block_size - block_size;
+        if (new_free_block_size < MemoryDomainBlock::GetMinimumBlockSize()) {
+            block_size = src_block_size;
+            new_free_block_size = 0;
+        }
+
+        auto prev_block_ofs = src_block.GetPreviousBlockOffset();
+
+        void* used_block_mem = &src_block;
+        bool is_last = src_block.IsLastBlock() && (new_free_block_size == 0);
+
+        UnlinkFreeGenericBlock(src_block);
+        src_block.~MemoryDomainFreeGenericBlock();
+
+        used_block = new (used_block_mem) MemoryDomainUseBlock{block_size, prev_block_ofs, is_last};
+
+        if (!used_block->IsLastBlock() && new_free_block_size != 0) {
+            auto* new_free_block_mem = static_cast<char*>(used_block_mem) + block_size;
+            auto used_block_ofs = block_size;
+
+            (void)AllocateFreeBlock(new_free_block_mem, new_free_block_size, used_block_ofs);
+        }
+    } else {
+        assert((block_ofs % kMemoryDomainBlockAlign) == 0);
+        assert(block_ofs >= MemoryDomainBlock::GetMinimumBlockSize());
+
+        auto new_free_block_size1 = block_ofs;
+        auto new_free_block_size2 = src_block_size - (block_ofs + block_size);
+
+        if (new_free_block_size2 < MemoryDomainBlock::GetMinimumBlockSize()) {
+            block_size = src_block_size - block_ofs;
+            new_free_block_size2 = 0;
+        }
+
+        auto prev_block_ofs = src_block.GetPreviousBlockOffset();
+
+        auto* new_free_block_mem1 = reinterpret_cast<char*>(&src_block);
+
+        auto* used_block_mem = new_free_block_mem1 + block_ofs;
+        bool is_last = src_block.IsLastBlock() && (new_free_block_size2 == 0);
+
+        UnlinkFreeGenericBlock(src_block);
+        src_block.~MemoryDomainFreeGenericBlock();
+
+        (void)AllocateFreeBlock(new_free_block_mem1, new_free_block_size1, prev_block_ofs);
+
+        used_block = new (used_block_mem) MemoryDomainUseBlock{block_size, block_ofs, is_last};
+
+        if (!used_block->IsLastBlock() && new_free_block_size2 != 0) {
+            auto* new_free_block_mem2 = static_cast<char*>(used_block_mem) + block_size;
+            auto used_block_ofs = block_size;
+
+            (void)AllocateFreeBlock(new_free_block_mem2, new_free_block_size2, used_block_ofs);
+        }
     }
-
-    void* used_block_mem = &src_block;
-    auto prev_block_ofs = src_block.GetPreviousBlockOffset();
-
-    UnlinkFreeGenericBlock(src_block);
-    src_block.~MemoryDomainFreeGenericBlock();
-
-    Pointer<MemoryDomainUseBlock> used_block = new (used_block_mem)
-        MemoryDomainUseBlock{block_size, prev_block_ofs};
 
     assert((used_block->GetDataSize() % MemoryDomainUseBlock::kDataSizeStep) == 0);
-
-    if (!used_block->IsLastBlock() && new_free_block_size != 0) {
-        void* new_free_block_mem = static_cast<char*>(used_block_mem) + block_size;
-        auto used_block_ofs = block_size;
-
-        assert((reinterpret_cast<uintptr_t>(new_free_block_mem) %
-                kMemoryDomainBlockAlign) == 0);
-
-        (void)AllocateFreeBlock(new_free_block_mem, new_free_block_size, used_block_ofs);
-    }
-
     return used_block;
 }
 
-auto MemoryDomainFreeBlockPool::AddFreeMemoryArea(
-    void* mem,
-    MemoryDomainBlock::Size mem_size) noexcept
+auto MemoryDomainFreeBlockPool::AddFreeMemoryArea(void* mem,
+                                                  MemoryDomainBlock::Size mem_size) noexcept
     -> std::pair<Pointer<MemoryDomainFreeBlock>, Pointer<MemoryDomainRedZoneBlock>>
 {
-    bool mem_valid =
-        (mem != nullptr &&
-         ((reinterpret_cast<uintptr_t>(mem) % kMemoryDomainBlockAlign) == 0));
+    bool mem_valid = (mem != nullptr &&
+                      ((reinterpret_cast<uintptr_t>(mem) % kMemoryDomainBlockAlign) == 0));
     assert(mem_valid);
     if (!mem_valid)
         return {};
@@ -492,8 +590,7 @@ auto MemoryDomainFreeBlockPool::AddFreeMemoryArea(
         return {};
 
     char* redzone_block_mem = static_cast<char*>(mem) + free_block_size;
-    assert((reinterpret_cast<uintptr_t>(redzone_block_mem) % kMemoryDomainBlockAlign) ==
-           0);
+    assert((reinterpret_cast<uintptr_t>(redzone_block_mem) % kMemoryDomainBlockAlign) == 0);
 
     auto prev_block_ofs = free_block_size;
 
@@ -561,12 +658,13 @@ auto MemoryDomainFreeBlockPool::AllocateFreeBlock(
     MemoryDomainBlock::Size block_size,
     MemoryDomainBlock::Size prev_block_ofs) noexcept -> Pointer<MemoryDomainFreeBlock>
 {
+    assert((reinterpret_cast<uintptr_t>(mem) % kMemoryDomainBlockAlign) == 0);
     assert(block_size >= MemoryDomainBlock::GetMinimumBlockSize());
 
-    if (block_size == MemoryDomainBlock::GetMinimumBlockSize())
-        return AllocateFreeSmallBlock(mem, prev_block_ofs);
-    else if (block_size > MemoryDomainBlock::GetMinimumBlockSize())
+    if (block_size > MemoryDomainBlock::GetMinimumBlockSize())
         return AllocateFreeGenericBlock(mem, block_size, prev_block_ofs);
+    else if (block_size == MemoryDomainBlock::GetMinimumBlockSize())
+        return AllocateFreeSmallBlock(mem, prev_block_ofs);
 
     //__builtin_unreachable();
     return {};
@@ -574,8 +672,7 @@ auto MemoryDomainFreeBlockPool::AllocateFreeBlock(
 
 auto MemoryDomainFreeBlockPool::AllocateFreeSmallBlock(
     void* mem,
-    MemoryDomainBlock::Size prev_block_ofs) noexcept
-    -> Pointer<MemoryDomainFreeSmallBlock>
+    MemoryDomainBlock::Size prev_block_ofs) noexcept -> Pointer<MemoryDomainFreeSmallBlock>
 {
     Pointer<MemoryDomainFreeSmallBlock> new_free_block = new (mem)
         MemoryDomainFreeSmallBlock(prev_block_ofs);
@@ -592,8 +689,7 @@ auto MemoryDomainFreeBlockPool::AllocateFreeSmallBlock(
 auto MemoryDomainFreeBlockPool::AllocateFreeGenericBlock(
     void* mem,
     MemoryDomainBlock::Size block_size,
-    MemoryDomainBlock::Size prev_block_ofs) noexcept
-    -> Pointer<MemoryDomainFreeGenericBlock>
+    MemoryDomainBlock::Size prev_block_ofs) noexcept -> Pointer<MemoryDomainFreeGenericBlock>
 {
     assert(block_size > MemoryDomainBlock::GetMinimumBlockSize());
 

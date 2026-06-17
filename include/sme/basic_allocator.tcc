@@ -148,7 +148,7 @@ auto BasicAllocator<T, MemoryAreaType>::allocate(size_type size) -> pointer
 
     auto raw_size{sizeof(value_type) * size};
 
-    auto ptr = area_->Allocate(raw_size);
+    auto ptr = area_->Allocate(raw_size, alignof(value_type));
     if (ptr == nullptr)
         throw std::bad_alloc();
 

@@ -10,8 +10,10 @@
 
 namespace sme {
 
-using MemorySpaceBlockMatcher =
-    std::function<bool(const MemorySpaceBlock& block, MemorySpaceBlock::Size block_size)>;
+using MemorySpaceBlockMatcher = std::function<std::pair<bool, MemorySpaceBlock::Position>(
+    const MemorySpaceBlock& src_block,
+    MemorySpaceBlock::Size block_size,
+    MemorySpaceBlock::Size mem_align)>;
 
 class MemorySpaceManipulator final {
    public:
@@ -42,8 +44,10 @@ class MemorySpaceManipulator final {
 
     [[nodiscard]] auto FindFreeBlock(Block& start_block,
                                      Size block_size,
+                                     size_t mem_align,
                                      const MemorySpaceBlockMatcher& matcher,
-                                     bool unite_free = false) noexcept -> Block*;
+                                     bool unite_free = false) noexcept
+        -> std::pair<Block*, Position>;
 
    private:
     [[nodiscard]] auto CreateBlock(Position pos, Size block_size, Position prev_block_pos)
@@ -58,11 +62,10 @@ class MemorySpaceManipulator final {
     Pointer<Block> first_block_;
 };
 
-constexpr auto IsSuitableForAllocation(const MemorySpaceBlock& block,
-                                       MemorySpaceBlock::Size block_size) noexcept -> bool
-{
-    return (block.free && block_size <= block.size);
-}
+auto IsSuitableForAllocation(const MemorySpaceBlock& src_block,
+                             MemorySpaceBlock::Size block_size,
+                             size_t mem_align) noexcept
+    -> std::pair<bool, MemorySpaceBlock::Position>;
 
 }  // namespace sme
 

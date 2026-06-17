@@ -20,7 +20,8 @@ class SME_EXPORT MemoryDomain {
    public:
     using Size = MemoryDomainBlock::Size;
 
-    static constexpr Size kMinimumCapacity{MemoryDomainBlock::GetMinimumBlockSize() +
+    static constexpr Size kMinimumCapacity{sizeof(Synchronizer) +
+                                           MemoryDomainBlock::GetMinimumBlockSize() +
                                            MemoryDomainRedZoneBlock::kBlockSize};
 
     enum class AddressState : uint8_t { kInvalid, kFree, kUsed, kOther };
@@ -32,11 +33,11 @@ class SME_EXPORT MemoryDomain {
 
    public:
     explicit MemoryDomain(MemorySpace& mem_space,
-                          Synchronizer::Type sync_type = Synchronizer::Type::kNone);
+                          SynchronizationType sync_type = SynchronizationType::kNone);
 
     explicit MemoryDomain(MemorySpace& mem_space,
                           size_t domain_size,
-                          Synchronizer::Type sync_type = Synchronizer::Type::kNone);
+                          SynchronizationType sync_type = SynchronizationType::kNone);
 
     MemoryDomain(const MemoryDomain&) = delete;
     MemoryDomain(MemoryDomain&&) = delete;
@@ -47,7 +48,7 @@ class SME_EXPORT MemoryDomain {
 
     [[nodiscard]] auto GetMemorySpace() const noexcept -> MemorySpace&;
 
-    [[nodiscard]] auto Allocate(size_t data_size) -> Pointer<void>;
+    [[nodiscard]] auto Allocate(size_t data_size, size_t mem_align = 1) -> Pointer<void>;
     void Deallocate(Pointer<void>& ptr) noexcept;
     void Deallocate(Pointer<void>&& ptr) noexcept;
 
@@ -64,7 +65,8 @@ class SME_EXPORT MemoryDomain {
     static auto IsValidObjectId(const MemoryDomain& obj) noexcept -> bool;
 
    private:
-    [[nodiscard]] auto AllocateBlock(Size data_size) -> Pointer<MemoryDomainUseBlock>;
+    [[nodiscard]] auto AllocateBlock(Size data_size, Size mem_align)
+        -> Pointer<MemoryDomainUseBlock>;
     auto AddFreeMemory(Size data_size) -> bool;
 
     [[nodiscard]] auto AllocateSegment(size_t data_size) -> Pointer<MemoryDomainSegment>;
@@ -80,7 +82,7 @@ class SME_EXPORT MemoryDomain {
     const uint64_t kTypeCheckValue;
 
     Pointer<MemorySpace> mem_space_;
-    mutable Synchronizer sync_;
+    mutable Pointer<Synchronizer> sync_;
 
     Pointer<MemoryDomainSegment> begin_segment_;
     MemoryDomainFreeBlockPool free_block_pool_;
@@ -98,12 +100,12 @@ auto MemoryDomain::GetAddressState(const T* ptr) const noexcept
 
 [[nodiscard]] auto SME_EXPORT CreateMemoryDomain(
     MemorySpace& mem_space,
-    Synchronizer::Type sync_type = Synchronizer::Type::kNone) -> Pointer<MemoryDomain>;
+    SynchronizationType sync_type = SynchronizationType::kNone) -> Pointer<MemoryDomain>;
 
 [[nodiscard]] auto SME_EXPORT CreateMemoryDomain(
     MemorySpace& mem_space,
     size_t domain_size,
-    Synchronizer::Type sync_type = Synchronizer::Type::kNone) -> Pointer<MemoryDomain>;
+    SynchronizationType sync_type = SynchronizationType::kNone) -> Pointer<MemoryDomain>;
 
 void SME_EXPORT DeleteMemoryDomain(Pointer<MemoryDomain>&) noexcept;
 void SME_EXPORT DeleteMemoryDomain(Pointer<MemoryDomain>&&) noexcept;

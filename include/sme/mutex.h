@@ -23,6 +23,7 @@ class SME_EXPORT Mutex {
     Mutex(Mutex&&) = delete;
     auto operator=(const Mutex&) -> Mutex& = delete;
     auto operator=(Mutex&&) -> Mutex& = delete;
+
     ~Mutex();
 
     void lock();

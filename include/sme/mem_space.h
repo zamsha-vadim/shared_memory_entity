@@ -13,7 +13,8 @@
 #include "sme/sme_export.h"
 #include "sme/sync.h"
 
-// NOLINTBEGIN(modernize-use-nodiscard, google-explicit-constructor)
+// NOLINTBEGIN(modernize-use-nodiscard,
+// google-explicit-constructor,clang-analyzer-optin.performance.Padding)
 
 namespace sme {
 
@@ -25,7 +26,7 @@ class SME_EXPORT MemorySpace final {
    public:
     MemorySpace(const Pointer<void>& mem,
                 size_t size,
-                Synchronizer::Type sync_type = Synchronizer::Type::kNone);
+                SynchronizationType sync_type = SynchronizationType::kNone);
 
     MemorySpace(const MemorySpace&) = delete;
     MemorySpace(MemorySpace&& obj) noexcept = delete;
@@ -41,8 +42,9 @@ class SME_EXPORT MemorySpace final {
     [[nodiscard]] auto GetBaseAddress() const noexcept -> Pointer<void>;
     [[nodiscard]] auto GetCapacity() const noexcept -> size_t;
 
-    [[nodiscard]] auto Allocate(size_t size) -> Pointer<void>;
-    [[nodiscard]] auto AllocateAtLeast(size_t size) -> std::pair<Pointer<void>, size_t>;
+    [[nodiscard]] auto Allocate(size_t size, size_t mem_align = 1) -> Pointer<void>;
+    [[nodiscard]] auto AllocateAtLeast(size_t size, size_t mem_align = 1)
+        -> std::pair<Pointer<void>, size_t>;
     [[nodiscard]] auto Resize(Pointer<void> ptr, size_t new_size) -> bool;
 
     auto Deallocate(Pointer<void>& ptr) noexcept -> bool;
@@ -85,7 +87,7 @@ class SME_EXPORT MemorySpace final {
         [[nodiscard]] auto operator*() const -> value_type;
 
         [[nodiscard]] operator bool() const noexcept;
-        [[nodiscard]] auto operator !() const noexcept -> bool;
+        [[nodiscard]] auto operator!() const noexcept -> bool;
 
         auto operator++() -> Iterator&;
         auto operator++(int) -> Iterator;
@@ -112,12 +114,11 @@ class SME_EXPORT MemorySpace final {
     auto GetAllocatedBlock(const Pointer<void>& data_ptr) const -> const Block&;
     auto GetAllocatedBlock(Pointer<void>& data_ptr) -> Block&;
 
-    auto Intersects(const MemorySpaceBlock& block1,
-                    const MemorySpaceBlock& block2) noexcept -> bool;
+    auto Intersects(const MemorySpaceBlock& block1, const MemorySpaceBlock& block2) noexcept
+        -> bool;
 
    private:
     const uint64_t kTypeCheckValue;
-
     mutable Synchronizer sync_;
     mutable MemorySpaceManipulator mem_manip_;
     Pointer<Block> curr_block_;
@@ -125,11 +126,12 @@ class SME_EXPORT MemorySpace final {
 
 constexpr auto MemorySpace::GetMinimumSpaceSize() noexcept -> size_t
 {
-    return MemorySpaceBlock::GetMinBlockSize();
+    return MemorySpaceBlock::GetMinimumBlockSize();
 }
 
 }  // namespace sme
 
-// NOLINTEND(modernize-use-nodiscard, google-explicit-constructor)
+// NOLINTEND(modernize-use-nodiscard,
+// google-explicit-constructor,clang-analyzer-optin.performance.Padding)
 
 #endif  // SME_MEM_SPACE_H

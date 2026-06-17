@@ -31,11 +31,12 @@ void SetMutexConsistent(pthread_mutex_t& mutex)
     if (err_code != 0)
         throw std::system_error(err_code, std::generic_category(),
                                 "Can't repair mutex lock state consistent");
-
+/*
     err_code = pthread_mutex_unlock(&mutex);
     if (err_code != 0)
         throw std::system_error(err_code, std::generic_category(),
                                 "Can't relock mutex after consistent state restoring");
+*/        
 }
 
 }  // namespace
@@ -58,7 +59,7 @@ Mutex::~Mutex()
 {
     [[maybe_unused]] int err_code{};
 
-    if (locked_) {
+    if (locked_ != 0) {
         err_code = pthread_mutex_unlock(&mutex_);
         assert(err_code == 0);
     }
@@ -83,12 +84,6 @@ void Mutex::lock()
         throw std::system_error(err_code, std::generic_category(), "Can't lock mutex");
 
     SetMutexConsistent(mutex_);
-    --locked_;
-
-    err_code = pthread_mutex_lock(&mutex_);
-    if (err_code != 0)
-        throw std::system_error(err_code, std::generic_category(),
-                                "Can't lock mutex after consistent state restoring");
     ++locked_;
 }
 
@@ -105,18 +100,9 @@ auto Mutex::try_lock() -> bool
         throw std::system_error(err_code, std::generic_category(), "Can't lock mutex");
 
     SetMutexConsistent(mutex_);
-    --locked_;
+    ++locked_;
 
-    err_code = pthread_mutex_trylock(&mutex_);
-    if (err_code == 0) {
-        ++locked_;
-        return true;
-    } 
-    if (err_code == EBUSY)
-        return false;
-
-    throw std::system_error(err_code, std::generic_category(),
-                            "Can't lock mutex after consistent state restoring");
+    return true;
 }
 
 void Mutex::unlock()

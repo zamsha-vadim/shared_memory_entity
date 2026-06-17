@@ -20,7 +20,7 @@ void CheckMemorySpaceOffsetAligned(size_t ofs)
 
 auto SME_EXPORT ConstructMemorySpace(MemoryMap& mem_map,
                                      size_t ofs,
-                                     Synchronizer::Type sync_type) -> MemorySpace*
+                                     SynchronizationType sync_type) -> MemorySpace*
 {
     CheckMemorySpaceOffsetAligned(ofs);
 

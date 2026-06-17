@@ -2,29 +2,35 @@
 #define SME_SYNC_H
 
 #include <cstdint>
-#include <optional>
+#include <variant>
 
+#include "sme/adapt_spin_lock.h"
 #include "sme/mutex.h"
 #include "sme/sme_export.h"
 
 namespace sme {
 
+enum class SME_EXPORT SynchronizationType : uint8_t {
+    kNone,
+    kPrivateMutex,
+    kSharedMutex,
+    kAdaptiveSpinlock
+};
+
 class SME_EXPORT Synchronizer {
    public:
-    enum class Type : uint8_t { kNone, kPrivate, kShared };
+    explicit Synchronizer(SynchronizationType type);
 
-   public:
-    explicit Synchronizer(Type type);
+    auto GetType() const noexcept -> SynchronizationType;
 
     void lock();
-    auto try_lock() -> bool;
     void unlock();
 
    private:
-    std::optional<Mutex> mutex_;
+    std::variant<AdaptiveSpinLock, Mutex, std::monostate> impl_;
+    SynchronizationType type_{};
 };
 
 }  // namespace sme
 
 #endif  // SME_SYNC_H
-

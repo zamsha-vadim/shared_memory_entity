@@ -172,6 +172,7 @@ set(sme_public_headers
     ${INCLUDE_DIR}/ipvt.h
 
     ${INCLUDE_DIR}/futex.h
+    ${INCLUDE_DIR}/adapt_spin_lock.h
     ${INCLUDE_DIR}/mutex.h
     ${INCLUDE_DIR}/cond_var.h
 
@@ -215,11 +216,13 @@ set(sme_public_headers
     ${INCLUDE_DIR}/shm.h
     ${INCLUDE_DIR}/mapped_obj.h
 
-    ${INCLUDE_DIR}/sync_type.h
     ${INCLUDE_DIR}/msg_channel.h
 )
 
 set(sme_private_headers
+    ${INCLUDE_DIR}/internal/type.h
+    ${INCLUDE_DIR}/internal/util.h
+
     ${INCLUDE_DIR}/internal/string_hash.h
 
     ${INCLUDE_DIR}/internal/ref_count.h
@@ -240,6 +243,7 @@ add_library(sme SHARED
     ${sme_headers}
 
     src/futex.cpp
+    src/adapt_spin_lock.cpp
     src/mutex.cpp
     src/cond_var.cpp
 
@@ -380,6 +384,7 @@ if (GTest_FOUND)
 
         test/mutex_test.cpp
         test/cond_var_test.cpp
+        test/adapt_spin_lock_test.cpp
 
         test/item_link_test.cpp
 
