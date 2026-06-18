@@ -7,8 +7,13 @@ namespace sme {
 namespace {
 
 constexpr uint64_t kOffsetValueMask{0x0000FFFFFFFFFFFF};
+
+// need to be calculated from last user space address
 constexpr uint64_t kNegativeOffsetValueFlag{0x8000000000000000};
+
 constexpr uint64_t kCounterValueMask{~(kOffsetValueMask | kNegativeOffsetValueFlag)};
+
+// need to be calculated from last user space address
 constexpr uint8_t kCounterValueShift{48};
 
 }  // namespace
@@ -49,8 +54,6 @@ auto IncreaseUseCounter(ObjectOffset& ofs_ptr, UseCounter value) noexcept -> Use
 
     UseCounter counter = ExtractUseCounter(ofs_ptr);
     counter += value;
-
-    assert(counter >= 0);
 
     const ObjectOffset counter_view = static_cast<ObjectOffset>(counter) << kCounterValueShift;
     const bool is_ofs_negative = ((ofs_ptr & GetNegativeOffsetFlag()) != 0);

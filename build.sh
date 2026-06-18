@@ -1,7 +1,10 @@
 #!/bin/bash
 
-mkdir build
+set -e
+
+mkdir -p build
 cd build
-cmake ..
+
+cmake -DCMAKE_BUILD_TYPE=release ..
 make -j`nproc`
 
