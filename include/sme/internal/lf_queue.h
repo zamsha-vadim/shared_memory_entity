@@ -28,11 +28,6 @@ class alignas(kCacheLineSize) LockFreeQueue final {
                   "The item class must have the method \"auto GetItemDescriptor() "
                   "noexcept -> sme::ItemDescriptor&\"");
 
-#if defined(__clang__)
-    static_assert(std::atomic<ItemLink>::is_always_lock_free,
-                  "128-bit atomics are not lock-free");
-#endif
-
    public:
     using ItemType = ItemT;
 

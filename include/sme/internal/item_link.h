@@ -21,6 +21,10 @@ struct alignas(kDWCASAlign) ItemLink final {
     ObjectOffset next{0};
 };
 
+#if defined(__clang__)
+static_assert(std::atomic<ItemLink>::is_always_lock_free, "128-bit atomics are not lock-free");
+#endif
+
 auto operator==(const ItemLink& lhs, const ItemLink& rhs) noexcept -> bool;
 auto operator!=(const ItemLink& lhs, const ItemLink& rhs) noexcept -> bool;
 

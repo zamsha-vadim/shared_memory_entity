@@ -77,7 +77,7 @@ auto LockFreeQueue<ItemT>::WriteItem(ItemType* new_item) noexcept -> QueueResult
                 updated_read_link.next = GetObjectOffset(new_item);
 
                 if (read_link_.compare_exchange_strong(curr_read_link, updated_read_link,
-                                                       std::memory_order_acq_rel))
+                                                       std::memory_order_relaxed))
                     break;
                 if (curr_read_link.next != 0)
                     break;
@@ -240,9 +240,9 @@ auto LockFreeQueue<ItemT>::IncrementUseCounter(ItemLink& curr_link,
 
     IncreaseUseCounter(holder_link.basic, 1);
 
-    while (!read_link_.compare_exchange_weak(curr_link, holder_link,
-                                               /*std::memory_order_acq_rel*/ std::memory_order_relaxed) &&
-           curr_link.next != 0) {
+    while (
+        !read_link_.compare_exchange_weak(curr_link, holder_link, std::memory_order_relaxed) &&
+        (curr_link.next != 0)) {
         holder_link = curr_link;
         IncreaseUseCounter(holder_link.basic, 1);
     }
@@ -296,9 +296,8 @@ void LockFreeQueue<ItemT>::NotifyReaders() noexcept
         WakeFutex(act_state_, kOneItemCount);
 
     } catch (const std::exception& ex) {
-        // assert(1 == 0);
-        // throw std::runtime_error(std::string("Lock free queue wake error: ") +
-        // ex.what());
+        assert(false && ex.what());
+        __builtin_unreachable();
     }
 }
 
