@@ -42,7 +42,7 @@ auto LockFreeQueue<ItemT>::WriteItem(ItemType* new_item) noexcept -> QueueResult
 
     auto new_item_ofp = GetObjectOffset(new_item);
 
-    ItemLink link{.basic = new_item_ofp, .next = 0};
+    const ItemLink link{.basic = new_item_ofp, .next = 0};
     new_item->GetItemDescriptor().link.store(link, std::memory_order_relaxed);
 
     auto prev_item_ofp = last_item_ofp_.load(std::memory_order_relaxed);
@@ -143,6 +143,8 @@ auto LockFreeQueue<ItemT>::Read(const std::chrono::milliseconds& timeout)
     return {QueueResult::kRejected, nullptr};
 }
 
+// NOLINTBEGIN(readability-function-cognitive-complexity)
+
 template <typename ItemT>
 auto LockFreeQueue<ItemT>::ReadItem() noexcept -> ItemType*
 {
@@ -171,15 +173,15 @@ auto LockFreeQueue<ItemT>::ReadItem() noexcept -> ItemType*
                 curr_item_descriptor.use_counter.fetch_add(read_counter,
                                                            std::memory_order_relaxed);
                 break;
-            } else {
-                if (ExtractOffset(curr_link.basic) != ExtractOffset(holder_link.basic)) {
-                    auto prev_use_counter = curr_item_descriptor.use_counter.fetch_sub(
-                        1, std::memory_order_relaxed);
-                    if (prev_use_counter == 1)
-                        curr_item->RemoveReference();
+            }
 
-                    break;
-                }
+            if (ExtractOffset(curr_link.basic) != ExtractOffset(holder_link.basic)) {
+                auto prev_use_counter =
+                    curr_item_descriptor.use_counter.fetch_sub(1, std::memory_order_relaxed);
+                if (prev_use_counter == 1)
+                    curr_item->RemoveReference();
+
+                break;
             }
         }
 
@@ -228,6 +230,8 @@ auto LockFreeQueue<ItemT>::ReadItem() noexcept -> ItemType*
 
     return res_item;
 }
+
+// NOLINTEND(readability-function-cognitive-complexity)
 
 template <typename ItemT>
 auto LockFreeQueue<ItemT>::IncrementUseCounter(ItemLink& curr_link,
@@ -316,7 +320,7 @@ auto LockFreeQueue<ItemT>::IsEmpty() const noexcept -> bool
 template <typename ItemT>
 void LockFreeQueue<ItemT>::Disable(bool disabled)
 {
-    if (disabled == true) {
+    if (disabled) {
         act_state_.fetch_or(kDisabledState, std::memory_order_release);
 
         NotifyReaders();

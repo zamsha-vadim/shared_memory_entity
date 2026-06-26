@@ -5,6 +5,9 @@
 #include <memory>
 #include <stdexcept>
 
+// NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast,
+// cppcoreguidelines-avoid-non-const-global-variables)
+
 namespace sme {
 
 // class AllocationContext implementation
@@ -191,5 +194,8 @@ void BasicAllocator<T, MemoryAreaType>::construct(pointer ptr, const_reference v
 }
 
 }  // namespace sme
+
+// NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast,
+// cppcoreguidelines-avoid-non-const-global-variables)
 
 #endif  // SME_BASIC_ALLOCATOR_TCC

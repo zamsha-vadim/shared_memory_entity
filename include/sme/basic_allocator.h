@@ -6,6 +6,8 @@
 #include "sme/mem_ptr.h"
 #include "sme/sme_export.h"
 
+// NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
+
 namespace sme {
 
 // class AllocationContext
@@ -41,7 +43,6 @@ class SME_EXPORT AllocationContext final {
 
     AreaPointer area_;
 
-    // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
     static thread_local AreaPointer glob_area_;
 };
 
@@ -137,5 +138,7 @@ inline auto SME_EXPORT operator!=(const BasicAllocator<T, MemoryAreaType>& lhs,
 }  // namespace sme
 
 #include "sme/basic_allocator.tcc"
+
+// NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
 #endif  // SME_BASIC_ALLOCATOR_H
