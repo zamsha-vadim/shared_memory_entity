@@ -40,10 +40,26 @@ set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 set(CMAKE_VISIBILITY_INLINES_HIDDEN 1)
 
 option(SANITIZE_MEMORY "Sanitize memory" OFF)
+option(SANITIZE_THREADS "Sanitize threads" OFF)
+
+if (SANITIZE_MEMORY AND SANITIZE_THREADS)
+    message(FATAL_ERROR "SANITIZE_MEMORY and SANITIZE_THREADS are incompatible")
+endif()
+
 if (SANITIZE_MEMORY)
-    set(satitize_mem_flags "-fsanitize=address,pointer-compare,pointer-subtract,leak,undefined")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${satitize_mem_flags}")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${satitize_mem_flags}")
+    set(sanitize_mem_flags "-fsanitize=address,pointer-compare,pointer-subtract,leak,undefined")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${sanitize_mem_flags}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${sanitize_mem_flags}")
+endif()
+
+if (SANITIZE_THREADS)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=thread")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=thread")
+endif()
+
+if ((SANITIZE_MEMORY OR SANITIZE_THREADS) AND NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -ggdb3")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ggdb3")
 endif()
 
 set(CMAKE_CXX_FLAGS_DEBUG "-ggdb3 -O0")
@@ -230,8 +246,6 @@ set(sme_private_headers
     ${INCLUDE_DIR}/internal/queue_res.h
     ${INCLUDE_DIR}/internal/lf_queue.h
     ${INCLUDE_DIR}/internal/lf_queue.tcc
-    ${INCLUDE_DIR}/internal/queue.h
-    ${INCLUDE_DIR}/internal/queue.tcc
 )
 
 set(sme_headers
@@ -387,8 +401,6 @@ if (GTest_FOUND)
         test/adapt_spin_lock_test.cpp
 
         test/item_link_test.cpp
-
-        test/queue_test.cpp
         test/lf_queue_test.cpp
 
         test/mem_space_test.cpp
