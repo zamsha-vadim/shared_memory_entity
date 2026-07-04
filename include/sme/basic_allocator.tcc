@@ -5,6 +5,8 @@
 #include <memory>
 #include <stdexcept>
 
+#include "sme/internal/likely_oper.h"
+
 // NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast,
 // cppcoreguidelines-avoid-non-const-global-variables)
 
@@ -94,16 +96,6 @@ auto AllocationContext<MemoryAreaType>::IsPresented() noexcept -> bool
 // class BasicAllocator implementation
 
 template <typename T, typename MemoryAreaType>
-BasicAllocator<T, MemoryAreaType>::BasicAllocator()
-{
-    auto curr_area = AllocationContext<MemoryAreaType>::GetCurrentArea();
-    if (curr_area == nullptr)
-        throw std::logic_error("There is no default allocation area");
-
-    area_ = std::move(curr_area);
-}
-
-template <typename T, typename MemoryAreaType>
 BasicAllocator<T, MemoryAreaType>::BasicAllocator(MemoryAreaType& area) : area_{&area}
 {
 }
@@ -145,14 +137,17 @@ auto BasicAllocator<T, MemoryAreaType>::operator=(
 template <typename T, typename MemoryAreaType>
 auto BasicAllocator<T, MemoryAreaType>::allocate(size_type size) -> pointer
 {
-    assert(IsValid());
-    if (!IsValid())
-        throw std::logic_error("Invalid memory allocator");
+    if (unlikely(!IsValid())) {
+        auto curr_area = AllocationContext<MemoryAreaType>::GetCurrentArea();
+        if (curr_area == nullptr)
+            throw std::logic_error("There is no default allocation area");
+        area_ = std::move(curr_area);
+    }
 
     auto raw_size{sizeof(value_type) * size};
 
     auto ptr = area_->Allocate(raw_size, alignof(value_type));
-    if (ptr == nullptr)
+    if (unlikely(ptr == nullptr))
         throw std::bad_alloc();
 
     assert(alignof(value_type) == 0 ||
@@ -165,12 +160,15 @@ template <typename T, typename MemoryAreaType>
 void BasicAllocator<T, MemoryAreaType>::deallocate(pointer ptr,
                                                    [[maybe_unused]] size_type) noexcept
 {
-    if (!ptr)
+    if (unlikely(!ptr))
         return;
 
-    //assert(IsValid()); // uncomment after additional testing
-    if (!IsValid())
-        return;
+    if (unlikely(!IsValid())) {
+        auto curr_area = AllocationContext<MemoryAreaType>::GetCurrentArea();
+        if (curr_area == nullptr)
+            return;
+        area_ = std::move(curr_area);
+    }
 
     Pointer<void> ms_ptr = ptr;
     area_->Deallocate(ms_ptr);
@@ -183,10 +181,10 @@ void BasicAllocator<T, MemoryAreaType>::construct(pointer ptr, const_reference v
     assert(alignof(value_type) == 1 ||
            (reinterpret_cast<uintptr_t>(ptr.GetAddress()) % alignof(value_type)) == 0);
 
-    if (ptr == nullptr)
+    if (unlikely(ptr == nullptr))
         throw std::invalid_argument("Memory pointer is null");
-    if (alignof(value_type) != 1 &&
-        (reinterpret_cast<uintptr_t>(ptr.GetAddress()) % alignof(value_type)) != 0) {
+    if (unlikely(alignof(value_type) != 1 &&
+                 (reinterpret_cast<uintptr_t>(ptr.GetAddress()) % alignof(value_type)) != 0)) {
         throw std::invalid_argument("Memory pointer is not aligned for type");
     }
 

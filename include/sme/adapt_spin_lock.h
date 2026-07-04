@@ -30,10 +30,10 @@ class SME_EXPORT AdaptiveSpinLock final {
     auto CalculateWaitTime(uint64_t active_lock_id, uint64_t last_lock_id) noexcept
         -> uint64_t;
 
-    inline void UpdateAvarageAcquiringTime(uint64_t begin_acq_time) noexcept;
+    inline void UpdateAverageAcquiringTime(uint64_t begin_acq_time) noexcept;
     
     inline void MarkExecutionTimestamp() noexcept;
-    inline void UpdateAvarageExecutionTime() noexcept;
+    inline void UpdateAverageExecutionTime() noexcept;
 
    private:
     alignas(kCacheLineSize) std::atomic<uint32_t> sync_var_{0};

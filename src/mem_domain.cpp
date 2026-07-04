@@ -28,23 +28,23 @@ void ValidateMemorySpaceCapacity(const MemorySpace& mem_space)
 
 void ValidateSizes(size_t data_size, size_t mem_align)
 {
-    if (data_size == 0)
+    if (unlikely(data_size == 0))
         throw std::invalid_argument("Allocation size must be greater 0");
-    if (data_size >= std::numeric_limits<MemoryDomain::Size>::max())
+    if (unlikely(data_size >= std::numeric_limits<MemoryDomain::Size>::max()))
         throw std::invalid_argument(
             "Allocation size is greater " +
             std::to_string(std::numeric_limits<MemoryDomain::Size>::max()));
 
-    if (mem_align == 0 || mem_align >= std::numeric_limits<MemoryDomain::Size>::max())
+    if (unlikely(mem_align == 0 || mem_align >= std::numeric_limits<MemoryDomain::Size>::max()))
         throw std::invalid_argument("Invalid alignment value");
-    if (mem_align > 1 && (mem_align % 2) != 0)
+    if (unlikely(mem_align > 1 && (mem_align % 2) != 0))
         throw std::invalid_argument("Invalid alignment value: must be a power of 2");
 }
 
 void ReserveCapacity(MemoryDomain& mem_domain, size_t size)
 {
     auto ptr = mem_domain.Allocate(size);
-    if (ptr == nullptr)
+    if (unlikely(ptr == nullptr))
         throw std::bad_alloc();
 
     mem_domain.DisableAllocationExtensible();
@@ -55,7 +55,7 @@ auto ConstructMemoryDomainSegment(void* mem, MemoryDomainSegment::Size mem_size)
     -> Pointer<MemoryDomainSegment>
 {
     assert(mem != nullptr);
-    if (mem == nullptr)
+    if (unlikely(mem == nullptr))
         throw std::invalid_argument("Segment memory location is null");
 
     return {new (mem) MemoryDomainSegment{mem_size}};
@@ -63,7 +63,7 @@ auto ConstructMemoryDomainSegment(void* mem, MemoryDomainSegment::Size mem_size)
 
 void DeleteMemoryDomainSegment(Pointer<MemoryDomainSegment>& segment) noexcept
 {
-    if (segment == nullptr)
+    if (unlikely(segment == nullptr))
         return;
 
     segment->~MemoryDomainSegment();
@@ -115,12 +115,12 @@ auto MemoryDomain::Allocate(size_t data_size, size_t mem_align) -> Pointer<void>
     auto sync_guard = LockSynchronizer(sync_);
 
     auto block = AllocateBlock(data_size, mem_align);
-    return (block != nullptr) ? Pointer<void>{block->GetData()} : Pointer<void>{};
+    return (likely(block != nullptr)) ? Pointer<void>{block->GetData()} : Pointer<void>{};
 }
 
 void MemoryDomain::Deallocate(Pointer<void>& ptr) noexcept
 {
-    if (ptr == nullptr)
+    if (unlikely(ptr == nullptr))
         return;
     assert((reinterpret_cast<uintptr_t>(ptr.GetAddress()) %
             MemoryDomainUseBlock::kDataAlign) == 0);
@@ -166,7 +166,7 @@ auto MemoryDomain::AllocateBlock(Size data_size, Size mem_align)
     if (!alloc_extensible_)
         return {};
 
-    if (!AddFreeMemory(data_size))
+    if (unlikely(!AddFreeMemory(data_size)))
         return {};
     return free_block_pool_.AllocateUseBlock(data_size, mem_align);
 }
@@ -179,12 +179,12 @@ auto MemoryDomain::GetMemorySpace() const noexcept -> MemorySpace&
 auto MemoryDomain::AddFreeMemory(Size data_size) -> bool
 {
     auto segment = AllocateSegment(data_size);
-    if (segment == nullptr)
+    if (unlikely(segment == nullptr))
         return false;
 
     auto [free_block, redzone_block] =
         free_block_pool_.AddFreeMemoryArea(segment->GetData(), segment->GetDataCapacity());
-    if (free_block == nullptr) {
+    if (unlikely(free_block == nullptr)) {
         DeallocateSegment(segment);
         return false;
     }
@@ -208,7 +208,7 @@ auto MemoryDomain::AllocateSegment(size_t data_size) -> Pointer<MemoryDomainSegm
 {
     auto [mem, mem_size] = mem_space_->AllocateAtLeast(
         MemoryDomainSegment::CalculateSegmentSizeForData(data_size));
-    if (mem == nullptr)
+    if (unlikely(mem == nullptr))
         return {};
 
     return ConstructMemoryDomainSegment(mem, mem_size);

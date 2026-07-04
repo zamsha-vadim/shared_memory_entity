@@ -9,6 +9,8 @@
 #include <stdexcept>
 #include <type_traits>
 
+#include "sme/internal/likely_oper.h"
+#include "sme/internal/type.h"
 #include "sme/sme_export.h"
 
 namespace sme {
@@ -127,6 +129,11 @@ class SME_EXPORT Pointer final {
 
     [[nodiscard]] static auto pointer_to(adapted_value_type& value) noexcept -> Pointer;
 
+    /// Fast-path: advance by n elements using direct offset arithmetic.
+    /// Skips the decode->add->reencode cycle (GetAddress + SetAddress + CalculateOffset).
+    /// @pre Pointer is non-null (guaranteed for container iterators).
+    auto Advance(difference_type n) noexcept -> Pointer&;
+
    private:
     void Add(difference_type ofs);
     void Substract(difference_type ofs);
@@ -207,16 +214,25 @@ auto Pointer<T>::operator=(std::nullptr_t) noexcept -> Pointer&
 template <typename T>
 auto Pointer<T>::GetAddress() const noexcept -> pointer
 {
-    if (IsNull())
+    if (unlikely(IsNull()))
         return nullptr;
 
     auto* addr = reinterpret_cast<pointer>(reinterpret_cast<intptr_t>(this) + ofs_);
 
     if constexpr (!std::is_void_v<value_type>) {
-        return std::launder(addr);
+        return sme::internal::launder(addr);
     } else {
         return addr;
     }
+}
+
+template <typename T>
+auto Pointer<T>::operator*() const noexcept -> reference
+{
+    auto* addr = this->GetAddress();
+    assert(addr != nullptr);
+
+    return *addr;
 }
 
 template <typename T>
@@ -228,7 +244,7 @@ void Pointer<T>::SetAddress(const Pointer& ptr) noexcept
 template <typename T>
 void Pointer<T>::SetAddress(pointer addr) noexcept
 {
-    if (addr != nullptr) {
+    if (likely(addr != nullptr)) {
         auto ofs = CalculateOffset(addr);
 
         bool ofs_valid = IsValidOffset(ofs);
@@ -362,15 +378,6 @@ auto Pointer<T>::operator--(int) -> Pointer
 }
 
 template <typename T>
-auto Pointer<T>::operator*() const noexcept -> reference
-{
-    auto* addr = this->GetAddress();
-    assert(addr != nullptr);
-
-    return *addr;
-}
-
-template <typename T>
 auto Pointer<T>::at() const noexcept -> reference
 {
     auto* addr = this->GetAddress();
@@ -403,7 +410,7 @@ template <typename T>
 auto Pointer<T>::operator->() const -> pointer
 {
     auto* addr = this->GetAddress();
-    if (addr != nullptr)
+    if (likely(addr != nullptr))
         return addr;
 
     throw std::logic_error("Null pointer");
@@ -418,12 +425,12 @@ auto Pointer<T>::pointer_to(adapted_value_type& value) noexcept -> Pointer
 template <typename T>
 void Pointer<T>::Add(difference_type ofs)
 {
-    if (ofs == 0)
+    if (unlikely(ofs == 0))
         return;
 
     bool is_null = IsNull();
     assert(!is_null);
-    if (is_null)
+    if (unlikely(is_null))
         throw std::logic_error("Null pointer");
 
     this->SetAddress(GetGenericAddress() + ofs);
@@ -432,12 +439,12 @@ void Pointer<T>::Add(difference_type ofs)
 template <typename T>
 void Pointer<T>::Substract(difference_type ofs)
 {
-    if (ofs == 0)
+    if (unlikely(ofs == 0))
         return;
 
     bool is_null = IsNull();
     assert(!is_null);
-    if (is_null)
+    if (unlikely(is_null))
         throw std::logic_error("Pointer is null");
 
     this->SetAddress(this->GetGenericAddress() - ofs);
@@ -456,7 +463,7 @@ auto Pointer<T>::GetGenericAddress() const noexcept -> auto
 template <typename T>
 void Pointer<T>::Copy(const Pointer& ptr) noexcept
 {
-    if (this == &ptr)
+    if (unlikely(this == &ptr))
         return;
     SetAddress(ptr);
 }
@@ -464,7 +471,7 @@ void Pointer<T>::Copy(const Pointer& ptr) noexcept
 template <typename T>
 void Pointer<T>::Move(Pointer& ptr) noexcept
 {
-    if (this == &ptr)
+    if (unlikely(this == &ptr))
         return;
     SetAddress(ptr);
     ptr.Reset();
@@ -473,10 +480,25 @@ void Pointer<T>::Move(Pointer& ptr) noexcept
 // Additional utility functions
 
 template <typename T>
+auto Pointer<T>::Advance(difference_type n) noexcept -> Pointer&
+{
+    if (n == 0) [[unlikely]]
+        return *this;
+    if constexpr (std::is_void_v<value_type>) {
+        ofs_ += n;
+    } else {
+        ofs_ += static_cast<difference_type>(n) *
+                static_cast<difference_type>(sizeof(value_type));
+    }
+    assert(IsValidOffset(ofs_));
+    return *this;
+}
+
+template <typename T>
 auto SME_EXPORT operator+(Pointer<T> lhs,
                           typename Pointer<T>::difference_type ofs) noexcept -> Pointer<T>
 {
-    lhs += ofs;
+    lhs.Advance(ofs);
     return lhs;
 }
 
@@ -484,7 +506,7 @@ template <typename T>
 auto SME_EXPORT operator+(typename Pointer<T>::difference_type ofs,
                           Pointer<T> rhs) noexcept -> Pointer<T>
 {
-    rhs += ofs;
+    rhs.Advance(ofs);
     return rhs;
 }
 
@@ -492,7 +514,7 @@ template <typename T>
 auto SME_EXPORT operator-(Pointer<T> lhs,
                           typename Pointer<T>::difference_type ofs) noexcept -> Pointer<T>
 {
-    lhs -= ofs;
+    lhs.Advance(-ofs);
     return lhs;
 }
 

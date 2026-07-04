@@ -75,7 +75,7 @@ class SME_EXPORT BasicAllocator {
     };
 
    public:
-    BasicAllocator();
+    BasicAllocator() = default;
     explicit BasicAllocator(MemoryAreaType& area);
 
     BasicAllocator(const BasicAllocator&) noexcept = default;

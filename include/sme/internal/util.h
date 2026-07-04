@@ -5,6 +5,7 @@
 #include <x86intrin.h>
 #endif
 
+#include "sme/internal/likely_oper.h"
 #include "sme/internal/type.h"
 
 namespace sme {

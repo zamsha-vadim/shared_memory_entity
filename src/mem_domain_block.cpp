@@ -81,7 +81,7 @@ void MemoryDomainBlock::SetAsLastBlock(bool state) noexcept
 
 auto MemoryDomainBlock::GetPreviousBlockAddress() const noexcept -> MemoryDomainBlock*
 {
-    if (prev_block_ofs_ == 0)
+    if (unlikely(prev_block_ofs_ == 0))
         return nullptr;
 
     auto* prev_block_addr =
@@ -91,7 +91,7 @@ auto MemoryDomainBlock::GetPreviousBlockAddress() const noexcept -> MemoryDomain
 
 auto MemoryDomainBlock::GetNextBlockAddress() const noexcept -> MemoryDomainBlock*
 {
-    if (is_last_)
+    if (unlikely(is_last_))
         return nullptr;
 
     auto* next_block_addr =
@@ -149,7 +149,7 @@ auto MemoryDomainUseBlock::HasAddress(const char* addr) const noexcept -> bool
 
 auto MemoryDomainUseBlock::CalculateBlockSizeForData(Size data_size) noexcept -> Size
 {
-    if (data_size == 0 || data_size > GetMaximumDataSize())
+    if (unlikely(data_size == 0 || data_size > GetMaximumDataSize()))
         return 0;
 
     auto block_size = sizeof(MemoryDomainUseBlock) + data_size;
@@ -451,7 +451,7 @@ auto MemoryDomainFreeBlockPool::AllocateUseBlockFromSuitableGenericBlock(
     auto block_size = MemoryDomainUseBlock::CalculateBlockSizeForData(data_size);
 
     auto [free_block, block_ofs] = FindSuitableFreeGenericBlock(block_size, mem_align);
-    if (free_block == nullptr)
+    if (unlikely(free_block == nullptr))
         return {};
     return AllocateUseBlockFromGenericBlock(*free_block, block_size, block_ofs);
 }

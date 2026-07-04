@@ -204,7 +204,7 @@ void AdaptiveSpinLock::lock()
         }
     }
 
-    UpdateAvarageAcquiringTime(begin_acq_time);
+    UpdateAverageAcquiringTime(begin_acq_time);
     MarkExecutionTimestamp();
 
     std::atomic_thread_fence(std::memory_order_acq_rel);
@@ -215,7 +215,7 @@ void AdaptiveSpinLock::lock()
 void AdaptiveSpinLock::unlock()
 {
     if (type_ == Type::kAdaptive && concur_wait_num_ != 0)
-        UpdateAvarageExecutionTime();
+        UpdateAverageExecutionTime();
 
     UnlockFutex(sync_var_);
     active_lock_id_.fetch_add(1, std::memory_order_release);
@@ -236,7 +236,7 @@ auto AdaptiveSpinLock::CalculateWaitTime(uint64_t active_lock_id,
     return (avg_work_time * wait_multiplier);
 }
 
-void AdaptiveSpinLock::UpdateAvarageAcquiringTime(uint64_t begin_acq_time) noexcept
+void AdaptiveSpinLock::UpdateAverageAcquiringTime(uint64_t begin_acq_time) noexcept
 {
     auto curr_time = GetTimestamp();
 
@@ -255,7 +255,7 @@ void AdaptiveSpinLock::MarkExecutionTimestamp() noexcept
     begin_timestamp_ = GetTimestamp();
 }
 
-void AdaptiveSpinLock::UpdateAvarageExecutionTime() noexcept
+void AdaptiveSpinLock::UpdateAverageExecutionTime() noexcept
 {
     auto last_avg_time = avg_exec_time_.load(std::memory_order_acquire);
     auto updated_avg_time =

@@ -4,13 +4,6 @@
 #include <cstddef>
 #include <new>
 
-#if defined(__x86_64__)
-#if !defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_16)
-#error \
-    " the target processor doen't support atomic compare and swap operations on operands 16 bytes in length"
-#endif
-#endif
-
 namespace sme {
 
 constexpr auto kDWCASAlign{16U};
@@ -21,7 +14,20 @@ constexpr size_t kCacheLineSize = std::hardware_constructive_interference_size;
 constexpr size_t kCacheLineSize{64};
 #endif
 
+namespace internal {
+
+template <typename T>
+constexpr T* launder(T* p) noexcept
+{
+#if defined(__clang__)
+    return p;
+#else
+    return std::launder(p);
+#endif
+}
+
+}  // namespace internal
 }  // namespace sme
 
-#endif //SME_INTERNAL_TYPE_H
+#endif  // SME_INTERNAL_TYPE_H
 
